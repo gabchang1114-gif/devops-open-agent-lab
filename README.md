@@ -28,6 +28,60 @@ Supported LLM providers: OpenAI, Anthropic, OpenRouter, Ollama
 - Optional: `~/.aws/credentials` for AWS and Cloud Cost modules
 - Optional: GitHub token for PR Reviewer
 
+### Ubuntu one-line installs
+
+Use these commands on Ubuntu to install common dependencies before running `./install.sh`.
+
+**Docker**
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+```
+
+After install, add your user to the Docker group (log out/in or reboot afterward):
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+**Ollama (local LLM)**
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+Pull a model (example used by default in `backend/.env.example`):
+
+```bash
+ollama pull gemma4:e4b
+```
+
+**Kind (local Kubernetes cluster)**
+
+```bash
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
+```
+
+**AWS CLI v2**
+
+```bash
+sudo apt update && sudo apt install -y python3 python3-pip curl unzip && curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o awscliv2.zip && unzip -q awscliv2.zip && sudo ./aws/install
+```
+
+Configure credentials:
+
+```bash
+aws configure
+```
+
+**kubectl**
+
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+```
+
+> **Note:** The Kind and kubectl commands above target `linux/amd64`. On ARM64 Ubuntu, replace `amd64` with `arm64` in the download URLs.
+
 ## Quick Install
 
 From the project root:
