@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kda-test-scheduling
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oversized-workload
+  namespace: kda-test-scheduling
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oversized-workload
+  template:
+    metadata:
+      labels:
+        app: oversized-workload
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.25
+          resources:
+            requests:
+              cpu: "32"
+              memory: "128Gi"
+            limits:
+              cpu: "32"
+              memory: "128Gi"

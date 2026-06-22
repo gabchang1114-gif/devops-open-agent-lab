@@ -1,0 +1,203 @@
+# DevOps Open Agent
+
+**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance.
+
+## Modules
+
+| Module | Description |
+|--------|-------------|
+| **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology |
+| **AWS DevOps Agent** | Troubleshoot AWS infrastructure across accounts and regions |
+| **Cloud Cost Detector** | Find unused and underutilized AWS resources |
+| **PR Reviewer** | AI DevOps review for GitHub pull requests |
+
+## Tech Stack
+
+- **Backend:** Python 3.12, FastAPI, SQLite, PostgreSQL (auth), shared LLM providers
+- **Frontend:** Next.js 15, TypeScript, Tailwind CSS, TanStack Query
+- **Runtime:** Docker Compose
+
+Supported LLM providers: OpenAI, Anthropic, OpenRouter, Ollama
+
+## Prerequisites
+
+- macOS or Linux
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS) or Docker Engine + Compose (Linux)
+- Optional: [Ollama](https://ollama.com/) for local AI
+- Optional: `~/.kube/config` for Kubernetes investigations
+- Optional: `~/.aws/credentials` for AWS and Cloud Cost modules
+- Optional: GitHub token for PR Reviewer
+
+## Quick Install
+
+From the project root:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+Custom admin password:
+
+```bash
+./install.sh --admin-pass 'MySecurePass123'
+```
+
+Configure only (no Docker build):
+
+```bash
+./install.sh --skip-build
+```
+
+The installer will:
+
+1. Verify Docker and Compose
+2. Create `backend/.env` from `backend/.env.example` if missing
+3. Set default username `admin` and password
+4. Generate a random `JWT_SECRET`
+5. Build and start all services with Docker Compose
+
+## Default Login
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin123` (or value passed to `--admin-pass`) |
+
+Sign in at [http://localhost:3000/login](http://localhost:3000/login).
+
+Change the password in `backend/.env` before production:
+
+```env
+DEFAULT_ADMIN_PASSWORD=your-secure-password
+```
+
+Then restart:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+> **Note:** If an older install already created `admin@example.com`, delete the Postgres volume or sign up a new user. Fresh installs use username `admin`.
+
+## Manual Setup
+
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env with your secrets and provider settings
+docker compose up -d --build
+```
+
+### URLs
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:3000 | Web UI |
+| http://localhost:8000/health | Health check |
+| http://localhost:8000/docs | OpenAPI docs |
+
+## Configuration
+
+All backend settings live in `backend/.env` (gitignored). See `backend/.env.example` for the full list.
+
+Common settings:
+
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=gemma4:e4b
+
+GITHUB_TOKEN=
+GITHUB_WEBHOOK_SECRET=
+
+DEFAULT_ADMIN_EMAIL=admin
+DEFAULT_ADMIN_PASSWORD=admin123
+JWT_SECRET=change-me
+```
+
+For PR Reviewer webhooks, point GitHub to:
+
+```text
+http://<your-host>:8000/api/v1/pr-reviewer/webhook
+```
+
+Use a tunnel (ngrok, Cloudflare Tunnel) for public GitHub delivery.
+
+## Project Structure
+
+```text
+open-devops-agent/
+├── backend/              # FastAPI application
+│   └── app/
+│       ├── modules/      # Agent modules (aws, cloud_cost, pr_reviewer, ...)
+│       ├── ai/           # Shared LLM providers
+│       └── storage/      # SQLite history stores
+├── frontend/             # Next.js UI
+├── docker-compose.yml
+├── install.sh            # macOS/Linux installer
+├── docs/                 # Additional documentation
+└── prompts/              # Agent prompt specs
+```
+
+## Development
+
+**Backend:**
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+**Frontend:**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Publishing to GitHub
+
+Only source and configuration templates should be committed. Secrets and build artifacts are excluded via `.gitignore`.
+
+**Safe to commit:**
+
+- `backend/app/`, `backend/requirements.txt`, `backend/Dockerfile`, `backend/.env.example`
+- `frontend/` source (not `node_modules/` or `.next/`)
+- `docker-compose.yml`, `install.sh`, `README.md`, `docs/`, `prompts/`, `tests/`
+
+**Never commit:**
+
+- `backend/.env` (API keys, tokens, passwords)
+- `node_modules/`, `.next/`, `.venv/`
+- `data/` and local SQLite databases
+- `.cursor/` and IDE-specific files
+
+Initialize and push:
+
+```bash
+git init
+git add .
+git status   # verify no secrets or build artifacts are staged
+git commit -m "Initial commit: DevOps Open Agent platform"
+git branch -M main
+git remote add origin https://github.com/<org>/<repo>.git
+git push -u origin main
+```
+
+## Useful Commands
+
+```bash
+docker compose logs -f
+docker compose down
+docker compose up -d --build
+docker compose exec backend python -c "from app.core.config import get_settings; print(get_settings().llm_provider)"
+```
+
+## License
+
+Open source — contributions welcome.

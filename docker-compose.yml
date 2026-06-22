@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kda
+      POSTGRES_PASSWORD: kda
+      POSTGRES_DB: kda
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kda -d kda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ${HOME}/.kube:/home/kube/.kube:ro
+      - ${HOME}/.aws:/root/.aws:ro
+      - backend-data:/app/data
+    env_file:
+      - backend/.env
+    environment:
+      APP_ENV: development
+      LLM_TIMEOUT: "180"
+      LOG_LEVEL: INFO
+      KUBECONFIG: /home/kube/.kube/config
+      KUBE_API_HOST_REWRITE: host.docker.internal
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      DATABASE_PATH: data/investigations.db
+      POSTGRES_URL: postgresql+asyncpg://kda:kda@postgres:5432/kda
+      SEED_DEFAULT_ADMIN: "true"
+      DEFAULT_ADMIN_EMAIL: admin
+      DEFAULT_ADMIN_PASSWORD: admin123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:
+  postgres-data:

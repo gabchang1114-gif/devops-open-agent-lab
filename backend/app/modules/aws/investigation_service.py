@@ -1,0 +1,280 @@
+"""AWS investigation orchestration service."""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
+
+from loguru import logger
+
+from app.core.errors import sanitize_error_message
+from app.modules.aws.collectors import (
+    AwsCloudTrailCollector,
+    AwsCloudWatchCollector,
+    AwsConfigCollector,
+    AwsDeploymentCorrelationCollector,
+)
+from app.modules.aws.discovery import (
+    AwsAccountDiscovery,
+    AwsAutoScalingDiscovery,
+    AwsEc2Discovery,
+    AwsLoadBalancerDiscovery,
+    AwsSecurityGroupDiscovery,
+    AwsVpcDiscovery,
+)
+from app.modules.aws.errors import AwsCredentialsError, AwsError
+from app.modules.aws.models import (
+    AwsAccountInfo,
+    AwsCloudTrailResult,
+    AwsCloudWatchResult,
+    AwsConfigResult,
+    AwsDeploymentCorrelationResult,
+    AwsInvestigationContext,
+    AwsInvestigationRequest,
+    AwsInvestigationResponse,
+    AwsResourceDiscoveryResult,
+    AwsTopologyResult,
+)
+from app.modules.aws.ai.root_cause_analyzer import AwsRootCauseAnalyzer
+from app.modules.aws.topology.builder import AwsTopologyBuilder
+
+ProgressCallback = Callable[[str, int], Awaitable[None] | None]
+
+AWS_STEP_PROGRESS = {
+    "Account Discovery": 8,
+    "EC2 Discovery": 18,
+    "Network Discovery": 28,
+    "Security Groups": 38,
+    "Load Balancers": 48,
+    "CloudWatch": 62,
+    "CloudTrail": 76,
+    "AWS Config": 86,
+    "Topology": 92,
+    "AI Diagnosis": 100,
+}
+
+
+class AWSInvestigationService:
+    """Collect structured AWS investigation evidence and optional AI diagnosis."""
+
+    def __init__(self) -> None:
+        self.account_discovery = AwsAccountDiscovery()
+        self.ec2_discovery = AwsEc2Discovery()
+        self.vpc_discovery = AwsVpcDiscovery()
+        self.security_group_discovery = AwsSecurityGroupDiscovery()
+        self.load_balancer_discovery = AwsLoadBalancerDiscovery()
+        self.autoscaling_discovery = AwsAutoScalingDiscovery()
+        self.cloudwatch_collector = AwsCloudWatchCollector()
+        self.cloudtrail_collector = AwsCloudTrailCollector()
+        self.config_collector = AwsConfigCollector()
+        self.deployment_correlation_collector = AwsDeploymentCorrelationCollector()
+        self.topology_builder = AwsTopologyBuilder()
+        self.root_cause_analyzer = AwsRootCauseAnalyzer()
+
+    async def _report_progress(
+        self,
+        callback: ProgressCallback | None,
+        step: str,
+    ) -> None:
+        if callback is None:
+            return
+        progress = AWS_STEP_PROGRESS.get(step, 0)
+        result = callback(step, progress)
+        if result is not None:
+            await result
+
+    async def list_accounts(self, region: str | None = None) -> list:
+        target_region = region or "us-east-1"
+        return await self.account_discovery.list_accounts(target_region)
+
+    async def list_regions(self, account_id: str, region: str | None = None) -> list:
+        target_region = region or "us-east-1"
+        return await self.account_discovery.list_regions(account_id, target_region)
+
+    async def discover_topology(self, account_id: str, region: str) -> AwsTopologyResult:
+        """Discover infrastructure resources and build a topology graph for a region."""
+        account = await self.account_discovery.discover_account(region)
+        if account.account_id != account_id:
+            logger.warning(
+                "Topology discovery account mismatch | requested={} active={}",
+                account_id,
+                account.account_id,
+            )
+
+        instances, ebs_volumes, elastic_ips = await self.ec2_discovery.discover(region)
+        vpcs = await self.vpc_discovery.discover(region)
+
+        instance_security_map = {
+            instance.instance_id: instance.security_groups for instance in instances
+        }
+        security_groups = await self.security_group_discovery.discover(
+            region,
+            instance_security_map,
+        )
+        load_balancers, target_groups = await self.load_balancer_discovery.discover(region)
+        auto_scaling_groups = await self.autoscaling_discovery.discover(region)
+
+        resources = AwsResourceDiscoveryResult(
+            ec2_instances=instances,
+            vpcs=vpcs,
+            security_groups=security_groups,
+            load_balancers=load_balancers,
+            target_groups=target_groups,
+            auto_scaling_groups=auto_scaling_groups,
+            ebs_volumes=ebs_volumes,
+            elastic_ips=elastic_ips,
+        )
+
+        topology = self.topology_builder.build(resources, region)
+        logger.info(
+            "AWS topology discovered | account={} region={} nodes={} relationships={}",
+            account_id,
+            region,
+            len(topology.nodes),
+            len(topology.relationships),
+        )
+        return topology
+
+    async def investigate(
+        self,
+        request: AwsInvestigationRequest,
+        on_progress: ProgressCallback | None = None,
+    ) -> AwsInvestigationResponse:
+        notes: list[str] = []
+        try:
+            await self._report_progress(on_progress, "Account Discovery")
+            account = await self.account_discovery.discover_account(request.region)
+            if account.account_id != request.account_id:
+                notes.append(
+                    "Requested account_id does not match active credentials. "
+                    "Cross-account role assumption is not implemented yet."
+                )
+
+            await self._report_progress(on_progress, "EC2 Discovery")
+            instances, ebs_volumes, elastic_ips = await self.ec2_discovery.discover(request.region)
+            await self._report_progress(on_progress, "Network Discovery")
+            vpcs = await self.vpc_discovery.discover(request.region)
+
+            instance_security_map = {
+                instance.instance_id: instance.security_groups for instance in instances
+            }
+            await self._report_progress(on_progress, "Security Groups")
+            security_groups = await self.security_group_discovery.discover(
+                request.region,
+                instance_security_map,
+            )
+            await self._report_progress(on_progress, "Load Balancers")
+            load_balancers, target_groups = await self.load_balancer_discovery.discover(request.region)
+            auto_scaling_groups = await self.autoscaling_discovery.discover(request.region)
+
+            resources = AwsResourceDiscoveryResult(
+                ec2_instances=instances,
+                vpcs=vpcs,
+                security_groups=security_groups,
+                load_balancers=load_balancers,
+                target_groups=target_groups,
+                auto_scaling_groups=auto_scaling_groups,
+                ebs_volumes=ebs_volumes,
+                elastic_ips=elastic_ips,
+            )
+
+            await self._report_progress(on_progress, "Topology")
+            topology = self.topology_builder.build(resources, request.region)
+            await self._report_progress(on_progress, "CloudWatch")
+            cloudwatch = await self.cloudwatch_collector.collect(
+                request.region,
+                instances,
+                window=request.cloudwatch_window,
+            )
+            await self._report_progress(on_progress, "CloudTrail")
+            cloudtrail = await self.cloudtrail_collector.collect(
+                request.region,
+                instances=instances,
+                security_groups=security_groups,
+                cloudwatch_window=request.cloudwatch_window,
+            )
+            await self._report_progress(on_progress, "AWS Config")
+            aws_config = await self.config_collector.collect(request.region, instances)
+            deployment_correlation = await self.deployment_correlation_collector.collect()
+
+            investigation = AwsInvestigationContext(
+                account_id=request.account_id,
+                region=request.region,
+                collected_at=datetime.now(timezone.utc).isoformat(),
+                issue_type=request.issue_type,
+                query=request.query,
+                resource_counts={
+                    "ec2_instances": len(instances),
+                    "vpcs": len(vpcs),
+                    "security_groups": len(security_groups),
+                    "load_balancers": len(load_balancers),
+                    "target_groups": len(target_groups),
+                    "auto_scaling_groups": len(auto_scaling_groups),
+                    "ebs_volumes": len(ebs_volumes),
+                    "elastic_ips": len(elastic_ips),
+                    "topology_nodes": len(topology.nodes),
+                    "topology_relationships": len(topology.relationships),
+                },
+                notes=notes,
+            )
+
+            logger.info(
+                "AWS investigation completed | account={} region={} instances={} relationships={}",
+                request.account_id,
+                request.region,
+                len(instances),
+                len(topology.relationships),
+            )
+
+            response = AwsInvestigationResponse(
+                status="success",
+                account=account,
+                resources=resources,
+                topology=topology,
+                cloudwatch=cloudwatch,
+                cloudtrail=cloudtrail,
+                aws_config=aws_config,
+                deployment_correlation=deployment_correlation,
+                investigation=investigation,
+            )
+
+            if request.include_ai:
+                await self._report_progress(on_progress, "AI Diagnosis")
+                logger.info("Running AWS AI diagnosis | account={} region={}", request.account_id, request.region)
+                diagnosis = await self.root_cause_analyzer.analyze(response)
+                response.diagnosis = diagnosis
+                if diagnosis.llm_error:
+                    response.status = "partial_success"
+
+            return response
+        except AwsCredentialsError as exc:
+            return self._error_response(request, sanitize_error_message(str(exc)))
+        except AwsError as exc:
+            return self._error_response(request, sanitize_error_message(str(exc)))
+        except Exception as exc:
+            logger.exception("AWS investigation failed")
+            return self._error_response(request, sanitize_error_message(str(exc)))
+
+    def _error_response(self, request: AwsInvestigationRequest, error: str) -> AwsInvestigationResponse:
+        return AwsInvestigationResponse(
+            status="error",
+            account=AwsAccountInfo(
+                account_id=request.account_id,
+                account_name=None,
+                enabled_regions=[],
+                credential_source="unknown",
+            ),
+            resources=AwsResourceDiscoveryResult(),
+            topology=AwsTopologyResult(),
+            cloudwatch=AwsCloudWatchResult(collected=False, window=request.cloudwatch_window),
+            cloudtrail=AwsCloudTrailResult(collected=False),
+            aws_config=AwsConfigResult(enabled=False, error=error),
+            deployment_correlation=AwsDeploymentCorrelationResult(),
+            investigation=AwsInvestigationContext(
+                account_id=request.account_id,
+                region=request.region,
+                collected_at=datetime.now(timezone.utc).isoformat(),
+                notes=[error],
+            ),
+            error=error,
+        )
