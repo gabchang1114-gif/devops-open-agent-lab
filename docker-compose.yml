@@ -36,6 +36,7 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       DATABASE_PATH: data/investigations.db
       POSTGRES_URL: postgresql+asyncpg://kda:kda@postgres:5432/kda
+      CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost:3000},http://localhost:3000,http://127.0.0.1:3000
       SEED_DEFAULT_ADMIN: "true"
       DEFAULT_ADMIN_EMAIL: admin
       DEFAULT_ADMIN_PASSWORD: admin123
@@ -56,11 +57,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8000}
     depends_on:
       backend:
         condition: service_healthy

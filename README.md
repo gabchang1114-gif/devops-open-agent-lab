@@ -177,6 +177,54 @@ http://<your-host>:8000/api/v1/pr-reviewer/webhook
 
 Use a tunnel (ngrok, Cloudflare Tunnel) for public GitHub delivery.
 
+## Remote / AWS deployment
+
+When hosting on EC2 or another remote server, the browser must call the **public backend URL**, not `localhost`.
+
+**Symptom:** Login shows *"Unable to sign in. Please try again."* and:
+
+```bash
+docker compose exec frontend printenv NEXT_PUBLIC_API_BASE_URL
+# http://localhost:8000   ← wrong for remote browsers
+```
+
+**Fix:** Create a `.env` file in the project root (next to `docker-compose.yml`):
+
+```bash
+cp .env.compose.example .env
+```
+
+Edit `.env` with your public IP or domain:
+
+```env
+PUBLIC_API_BASE_URL=http://54.202.118.240:8000
+PUBLIC_APP_URL=http://54.202.118.240:3000
+```
+
+Rebuild and restart (frontend bakes in the API URL at build time):
+
+```bash
+docker compose build frontend
+docker compose up -d --force-recreate backend frontend
+```
+
+Verify:
+
+```bash
+docker compose exec frontend printenv NEXT_PUBLIC_API_BASE_URL
+curl -s http://127.0.0.1:8000/health
+```
+
+**Security group:** Allow inbound **TCP 3000** and **8000** from your client IP (browser needs both).
+
+**Test login from the server:**
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin","password":"admin123"}'
+```
+
 ## Project Structure
 
 ```text
