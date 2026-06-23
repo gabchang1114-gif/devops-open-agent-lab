@@ -234,36 +234,65 @@ curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
 | On the EC2 host (as root) | `/root/.kube/config` |
 | Inside the backend container | `/home/kube/.kube/config` |
 
-Docker Compose mounts `${HOME}/.kube` → `/home/kube/.kube` and sets `KUBECONFIG` automatically. If you set `KUBECONFIG_PATH` to a host path, the backend container cannot read it.
-
-**Setup on Ubuntu EC2 with Kind:**
-
-```bash
-# Create a cluster (after installing kind from README)
-kind create cluster --name devops-agent
-
-# Ensure a current context is set
-kubectl config get-contexts
-kubectl config use-context kind-devops-agent
-
-# Verify on the host
-kubectl get nodes
-```
-
-**Verify inside the backend container:**
+`/home/kube/` exists **inside the backend container only** — not on the EC2 host. Check the mount with:
 
 ```bash
 docker compose exec backend ls -la /home/kube/.kube/config
-docker compose exec backend kubectl config current-context
-docker compose exec backend kubectl get nodes
 ```
 
-If you see `error: current-context is not set`, fix the kubeconfig on the **host**:
+Docker Compose mounts `${HOME}/.kube` → `/home/kube/.kube`. Leave `KUBECONFIG_PATH` empty in `backend/.env`.
+
+### Why `kubectl` fails inside the container
+
+Kind writes the API server as `https://127.0.0.1:<port>`. Inside a container, `127.0.0.1` is the container itself, not your EC2 host — so this fails:
 
 ```bash
-kubectl config use-context kind-devops-agent
-docker compose up -d --force-recreate backend
+docker compose exec backend kubectl get nodes
+# dial tcp 127.0.0.1:34253: connect: connection refused
 ```
+
+The app rewrites localhost to `host.docker.internal` automatically. Kind must also listen on `0.0.0.0`, not only `127.0.0.1`.
+
+### Setup Kind on Ubuntu EC2 (recommended)
+
+```bash
+cd ~/devops-open-agent
+git pull origin main
+
+# Recreate cluster so the API is reachable from Docker
+kind delete cluster --name devops-agent 2>/dev/null || true
+kind create cluster --name devops-agent --config deploy/kind-devops-agent.yaml
+
+kubectl config use-context kind-devops-agent
+kubectl get nodes
+```
+
+Verify inside the backend container:
+
+```bash
+docker compose up -d --force-recreate backend
+
+# Mount + rewritten kubeconfig
+docker compose exec backend ls -la /home/kube/.kube/config
+docker compose exec backend python -c "
+from app.kubernetes.kubeconfig_resolver import prepare_kubeconfig
+print(prepare_kubeconfig(api_host_rewrite='host.docker.internal'))
+"
+
+# Use the rewritten config (what the app uses)
+docker compose exec backend kubectl --kubeconfig data/kubeconfig.docker.yaml get nodes
+```
+
+If the last command works, refresh the UI — **kubeconfig** and **cluster** should turn green.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `ls: cannot access '/home/kube/'` on EC2 host | Normal — run checks with `docker compose exec backend ...` |
+| `current-context is not set` | `kubectl config use-context kind-devops-agent` on the host |
+| `127.0.0.1: connect refused` in container | Recreate Kind with `deploy/kind-devops-agent.yaml` |
+| `kubeconfig: missing` in UI | Clear `KUBECONFIG_PATH` in `backend/.env`, ensure `/root/.kube/config` exists on host |
 
 Remove any wrong path from `backend/.env`:
 

@@ -1,0 +1,16 @@
+# Kind cluster config for DevOps Open Agent on Linux + Docker Compose.
+#
+# Kind's default API server binds to 127.0.0.1 only. The backend container cannot
+# reach that address. Binding to 0.0.0.0 lets host.docker.internal reach the API.
+#
+# Usage:
+#   kind delete cluster --name devops-agent 2>/dev/null || true
+#   kind create cluster --name devops-agent --config deploy/kind-devops-agent.yaml
+#   kubectl cluster-info
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: devops-agent
+networking:
+  apiServerAddress: "0.0.0.0"
+  apiServerPort: 6443
