@@ -12,6 +12,7 @@ from app.api.v1 import health as health_v1
 from app.api.v1 import investigations as investigations_v1
 from app.api.v1 import system as system_v1
 from app.api.v1 import topology as topology_v1
+from app.core.aws_env import sanitize_aws_environment
 from app.core.config import get_settings
 from app.core.errors import sanitize_error_message
 from app.core.logging import setup_logging
@@ -28,6 +29,7 @@ from app.storage.factory import get_pr_review_store
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    sanitize_aws_environment()
     settings = get_settings()
     job_service = InvestigationJobService()
     await job_service.initialize()
