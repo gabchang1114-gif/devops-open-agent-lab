@@ -9,8 +9,12 @@ from urllib.parse import urlparse, urlunparse
 import yaml
 from loguru import logger
 
-LOCAL_API_HOSTS = {"127.0.0.1", "localhost", "::1"}
+DOCKER_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
 DEFAULT_DOCKER_API_HOST = "host.docker.internal"
+
+
+def _should_rewrite_hostname(hostname: str | None) -> bool:
+    return hostname in DOCKER_LOOPBACK_HOSTS
 
 
 def is_running_in_docker() -> bool:
@@ -43,11 +47,27 @@ def get_source_kubeconfig_path(configured_path: str = "") -> str | None:
 
 def _rewrite_server_url(server: str, rewrite_host: str) -> str:
     parsed = urlparse(server)
-    if parsed.hostname not in LOCAL_API_HOSTS:
+    if not _should_rewrite_hostname(parsed.hostname):
         return server
     port = parsed.port
     netloc = f"{rewrite_host}:{port}" if port else rewrite_host
     return urlunparse(parsed._replace(netloc=netloc))
+
+
+def _output_has_loopback_server(output_path: Path) -> bool:
+    try:
+        with output_path.open("r", encoding="utf-8") as handle:
+            config = yaml.safe_load(handle) or {}
+    except OSError:
+        return True
+
+    for cluster in config.get("clusters", []) or []:
+        server = (cluster.get("cluster") or {}).get("server", "")
+        if not server:
+            continue
+        if _should_rewrite_hostname(urlparse(server).hostname):
+            return True
+    return False
 
 
 def _output_is_fresh(source: Path, output_path: Path) -> bool:
@@ -77,7 +97,7 @@ def prepare_kubeconfig(
     output_path = Path(output_dir) / "kubeconfig.docker.yaml"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if _output_is_fresh(source, output_path):
+    if _output_is_fresh(source, output_path) and not _output_has_loopback_server(output_path):
         return str(output_path)
 
     with source.open("r", encoding="utf-8") as handle:
