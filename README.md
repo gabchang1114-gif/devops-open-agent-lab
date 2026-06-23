@@ -237,7 +237,7 @@ The installer will:
 | Username | `admin` |
 | Password | `admin123` (or value passed to `--admin-pass`) |
 
-Sign in at [http://localhost:3000/login](http://localhost:3000/login).
+Sign in at [http://<your ip>:3000/login](http://<your_ip>:3000/login).
 
 Change the password in `backend/.env` before production:
 
@@ -265,9 +265,9 @@ docker compose up -d --build
 
 | URL | Description |
 |-----|-------------|
-| http://localhost:3000 | Web UI |
-| http://localhost:8000/health | Health check |
-| http://localhost:8000/docs | OpenAPI docs |
+| http://<your_ip>:3000 | Web UI |
+| http://<your_ip>:8000/health | Health check |
+| http://<your_ip>:8000/docs | OpenAPI docs |
 
 ## Configuration
 
