@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="img/devops-open-agent-icon.png" alt="DevOps Open Agent" width="128" />
+</p>
+
 # DevOps Open Agent
 
 **DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance.
