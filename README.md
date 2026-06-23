@@ -300,6 +300,40 @@ Remove any wrong path from `backend/.env`:
 KUBECONFIG_PATH=
 ```
 
+## AWS on EC2 / Docker
+
+**Error:** `The config profile () could not be found`
+
+This happens when `backend/.env` contains an empty line:
+
+```env
+AWS_PROFILE=
+```
+
+Docker injects that as a blank profile name. **Remove that line** from `backend/.env` (or set a real profile, e.g. `AWS_PROFILE=default`).
+
+**Recommended on EC2:** attach an **IAM instance role** with AWS read permissions and do not set `AWS_PROFILE` at all. Boto3 will use the instance role automatically.
+
+**Alternative:** mount host credentials (already configured in `docker-compose.yml`):
+
+```bash
+aws configure   # on the EC2 host
+docker compose exec backend ls -la /root/.aws/
+docker compose exec backend aws sts get-caller-identity
+```
+
+Then restart:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+Set region in `backend/.env` if needed:
+
+```env
+AWS_DEFAULT_REGION=us-west-2
+```
+
 ## Project Structure
 
 ```text
