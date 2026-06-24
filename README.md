@@ -21,7 +21,35 @@
 - **Frontend:** Next.js 15, TypeScript, Tailwind CSS, TanStack Query
 - **Runtime:** Docker Compose
 
-Supported LLM providers: OpenAI, Anthropic, OpenRouter, Ollama
+Supported LLM providers: OpenAI, Anthropic, OpenRouter, Ollama — see [LLM Supported](#llm-supported).
+
+## LLM Supported
+
+All four agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer) use a **shared LLM layer**.  
+Configure one provider in `backend/.env` — every investigation, diagnosis, and PR review uses it.
+
+![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, and Anthropic](img/llm-provider-diagram.png)
+
+| Provider | `LLM_PROVIDER` | Configure in `backend/.env` |
+|----------|--------------|-------------------------------|
+| **Ollama** | `ollama` | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` — local / self-hosted |
+| **OpenAI** | `openai` | `OPENAI_API_KEY`, `OPENAI_MODEL` |
+| **Anthropic** | `anthropic` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
+| **OpenRouter** | `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+
+Example (`backend/.env`):
+
+```env
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+```
+
+After changing provider settings, restart the backend:
+
+```bash
+docker compose up -d --force-recreate backend
+```
 
 ## Architecture
 
