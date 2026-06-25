@@ -34,6 +34,8 @@ async def get_aws_agent_status(
         message="AWS investigation engine collects infrastructure evidence via boto3.",
         capabilities=[
             "ec2",
+            "lambda",
+            "s3",
             "vpc",
             "subnet",
             "security_groups",

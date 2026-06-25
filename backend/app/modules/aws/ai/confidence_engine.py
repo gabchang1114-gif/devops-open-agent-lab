@@ -9,6 +9,8 @@ from app.modules.aws.ai.discovery_assessment import INSTANCE_ID_PATTERN
 
 VALID_SOURCES = {
     "ec2",
+    "lambda",
+    "s3",
     "vpc",
     "security_groups",
     "load_balancers",
@@ -122,6 +124,10 @@ class AwsConfidenceEngine:
         security_findings = context.get("security_findings", {})
 
         if ec2.get("problematic_instances"):
+            signals += 1
+        if context.get("lambda_findings", {}).get("problematic_functions"):
+            signals += 1
+        if context.get("s3_findings", {}).get("problematic_buckets"):
             signals += 1
         if security_findings.get("internet_exposed_ingress_rules") or network.get(
             "internet_exposed_ingress_rules"

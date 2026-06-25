@@ -5,6 +5,8 @@ export type CloudWatchWindow = "1h" | "24h" | "7d";
 export type AwsIssueType =
   | "full_scan"
   | "ec2_availability"
+  | "lambda"
+  | "s3"
   | "security"
   | "network"
   | "load_balancer"
@@ -151,8 +153,59 @@ export interface AwsAutoScalingGroup {
   }>;
 }
 
+export interface AwsLambdaEventSource {
+  uuid: string;
+  event_source_arn?: string | null;
+  event_source_type?: string | null;
+  state?: string | null;
+  batch_size?: number | null;
+}
+
+export interface AwsLambdaFunction {
+  function_name: string;
+  function_arn: string;
+  runtime?: string | null;
+  handler?: string | null;
+  memory_size?: number | null;
+  timeout?: number | null;
+  state?: string | null;
+  state_reason?: string | null;
+  last_update_status?: string | null;
+  role?: string | null;
+  vpc_id?: string | null;
+  subnet_ids: string[];
+  security_group_ids: string[];
+  environment_keys: string[];
+  event_sources: AwsLambdaEventSource[];
+  tags?: Record<string, string>;
+  description?: string | null;
+}
+
+export interface AwsS3BucketNotification {
+  target_type: string;
+  target_arn?: string | null;
+  events: string[];
+}
+
+export interface AwsS3Bucket {
+  bucket_name: string;
+  region?: string | null;
+  creation_date?: string | null;
+  public_access_block: Record<string, boolean | null | undefined>;
+  encryption_enabled?: boolean | null;
+  encryption_type?: string | null;
+  versioning_status?: string | null;
+  policy_is_public?: boolean | null;
+  logging_enabled?: boolean | null;
+  logging_target_bucket?: string | null;
+  notifications: AwsS3BucketNotification[];
+  tags?: Record<string, string>;
+}
+
 export interface AwsResourceDiscoveryResult {
   ec2_instances: AwsEc2Instance[];
+  lambda_functions: AwsLambdaFunction[];
+  s3_buckets: AwsS3Bucket[];
   vpcs: AwsVpc[];
   security_groups: AwsSecurityGroup[];
   load_balancers: AwsLoadBalancer[];
@@ -194,6 +247,17 @@ export interface AwsCloudWatchAlarm {
   threshold?: number | null;
 }
 
+export interface AwsLambdaInvocationMetrics {
+  function_name: string;
+  configured_timeout_sec?: number | null;
+  errors?: number;
+  throttles?: number;
+  max_duration_ms?: number | null;
+  avg_duration_ms?: number | null;
+  timeout_log_events?: number;
+  duration_at_timeout?: boolean;
+}
+
 export interface AwsCloudWatchResult {
   collected: boolean;
   window: string;
@@ -204,6 +268,7 @@ export interface AwsCloudWatchResult {
     window: string;
     datapoints: Array<Record<string, unknown>>;
   }>;
+  lambda_metrics?: AwsLambdaInvocationMetrics[];
   alarms: AwsCloudWatchAlarm[];
   error?: string | null;
 }

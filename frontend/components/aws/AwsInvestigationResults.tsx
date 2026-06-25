@@ -5,11 +5,13 @@ import { useMemo, useState } from "react";
 import { TopologyGraph } from "@/components/topology/TopologyGraph";
 import { awsTopologyToGraph } from "@/lib/awsTopologyAdapter";
 import { getAwsIssueTypeLabel } from "@/lib/awsIssueTypes";
-import type { AwsInvestigationResponse } from "@/types/aws";
+import type { AwsInvestigationResponse, AwsLambdaInvocationMetrics } from "@/types/aws";
 
 type ResultsTab =
   | "overview"
   | "ec2"
+  | "lambda"
+  | "s3"
   | "network"
   | "load_balancers"
   | "topology"
@@ -20,6 +22,8 @@ type ResultsTab =
 const TABS: { id: ResultsTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "ec2", label: "EC2" },
+  { id: "lambda", label: "Lambda" },
+  { id: "s3", label: "S3" },
   { id: "network", label: "Network" },
   { id: "load_balancers", label: "Load Balancers" },
   { id: "topology", label: "Topology" },
@@ -100,6 +104,13 @@ export function AwsInvestigationResults({ data }: AwsInvestigationResultsProps) 
 
   const counts = data.investigation.resource_counts;
   const collectedAt = new Date(data.investigation.collected_at).toLocaleString();
+  const lambdaMetricsByName = useMemo(() => {
+    const map = new Map<string, AwsLambdaInvocationMetrics>();
+    for (const metric of data.cloudwatch.lambda_metrics ?? []) {
+      map.set(metric.function_name, metric);
+    }
+    return map;
+  }, [data.cloudwatch.lambda_metrics]);
 
   return (
     <div className="panel-accent overflow-hidden">
@@ -258,6 +269,69 @@ export function AwsInvestigationResults({ data }: AwsInvestigationResultsProps) 
               instance.private_ip ?? "—",
               <span className="font-mono text-xs">{instance.vpc_id ?? "—"}</span>,
               instance.auto_scaling_group ?? "—",
+            ])}
+          />
+        )}
+
+        {activeTab === "lambda" && (
+          <ResourceTable
+            headers={["Function", "Runtime", "Timeout", "State", "Errors", "Max Duration", "Timeouts"]}
+            emptyMessage="No Lambda functions discovered in this region."
+            rows={(data.resources.lambda_functions ?? []).map((fn) => {
+              const metrics = lambdaMetricsByName.get(fn.function_name);
+              const timeoutIssues =
+                (metrics?.timeout_log_events ?? 0) > 0 || metrics?.duration_at_timeout;
+              return [
+                <div key={fn.function_arn}>
+                  <p className="font-mono text-xs">{fn.function_name}</p>
+                  <p className="truncate text-[11px] text-slate-500">{fn.function_arn}</p>
+                  {fn.state_reason && (
+                    <p className="mt-1 text-[11px] text-amber-300/90">{fn.state_reason}</p>
+                  )}
+                </div>,
+                fn.runtime ?? "—",
+                fn.timeout != null ? `${fn.timeout}s` : "—",
+                <StateBadge key="state" state={fn.state} />,
+                metrics?.errors != null ? String(metrics.errors) : "—",
+                metrics?.max_duration_ms != null
+                  ? `${Math.round(metrics.max_duration_ms)}ms`
+                  : "—",
+                timeoutIssues ? (
+                  <span className="text-amber-300">
+                    {metrics?.timeout_log_events
+                      ? `${metrics.timeout_log_events} log event(s)`
+                      : "duration at timeout"}
+                  </span>
+                ) : (
+                  "—"
+                ),
+              ];
+            })}
+          />
+        )}
+
+        {activeTab === "s3" && (
+          <ResourceTable
+            headers={["Bucket", "Encryption", "Versioning", "Public Policy", "Logging", "Notifications"]}
+            emptyMessage="No S3 buckets discovered in this region."
+            rows={(data.resources.s3_buckets ?? []).map((bucket) => [
+              <div key={bucket.bucket_name}>
+                <p className="font-mono text-xs">{bucket.bucket_name}</p>
+                {bucket.region && <p className="text-xs text-slate-500">{bucket.region}</p>}
+              </div>,
+              bucket.encryption_enabled == null
+                ? "—"
+                : bucket.encryption_enabled
+                  ? bucket.encryption_type ?? "Enabled"
+                  : "Disabled",
+              bucket.versioning_status ?? "—",
+              bucket.policy_is_public == null
+                ? "—"
+                : bucket.policy_is_public
+                  ? "Public"
+                  : "Not public",
+              bucket.logging_enabled ? bucket.logging_target_bucket ?? "Enabled" : "Disabled",
+              String(bucket.notifications?.length ?? 0),
             ])}
           />
         )}

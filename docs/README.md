@@ -16,9 +16,16 @@
 | [devops-open-agent-architecture.html](./devops-open-agent-architecture.html) | HTML | Static export of application request flow — open in browser or Print → PDF |
 | [diagrams/application-request-flow.svg](./diagrams/application-request-flow.svg) | SVG | Application request flow (vector) |
 | [diagrams/application-request-flow.png](./diagrams/application-request-flow.png) | PNG | Application request flow |
+| [../img/aws-services-diagram.png](../img/aws-services-diagram.png) | PNG | AWS DevOps Agent → supported services |
+| [../img/aws-services-diagram.svg](../img/aws-services-diagram.svg) | SVG | AWS services architecture (vector) |
+| [../img/llm-provider-diagram.png](../img/llm-provider-diagram.png) | PNG | Shared LLM provider architecture |
 
-**Interactive canvas in Cursor:** open the live canvas beside chat from
-`~/.cursor/projects/Users-plakhera-open-devops-agent/canvases/devops-open-agent-architecture.canvas.tsx`.
+**Regenerate AWS / LLM diagrams:**
+
+```bash
+python3 scripts/build_aws_services_diagram.py
+python3 scripts/build_llm_diagram.py
+```
 
 **Regenerate PNG/SVG from Mermaid:**
 

@@ -120,13 +120,15 @@ export const INVESTIGATION_STEPS = [
 export const AWS_INVESTIGATION_STEPS = [
   "Account Discovery",
   "EC2 Discovery",
+  "Lambda Discovery",
+  "S3 Discovery",
   "Network Discovery",
   "Security Groups",
   "Load Balancers",
+  "Topology",
   "CloudWatch",
   "CloudTrail",
   "AWS Config",
-  "Topology",
   "AI Diagnosis",
 ] as const;
 

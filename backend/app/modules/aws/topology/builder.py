@@ -128,6 +128,33 @@ class AwsTopologyBuilder:
             if address.instance_id:
                 relate(eip_ref, add_node("ec2", address.instance_id), "associated_with")
 
+        for function in resources.lambda_functions:
+            function_ref = add_node("lambda", function.function_arn, function.function_name)
+            if function.vpc_id:
+                relate(add_node("vpc", function.vpc_id), function_ref, "contains")
+            for subnet_id in function.subnet_ids:
+                relate(add_node("subnet", subnet_id), function_ref, "contains")
+            for group_id in function.security_group_ids:
+                group_ref = add_node("security_group", group_id)
+                relate(function_ref, group_ref, "uses")
+            if function.role:
+                role_name = function.role.rsplit("/", 1)[-1]
+                role_ref = add_node("iam_role", role_name, role_name)
+                relate(function_ref, role_ref, "assumes")
+            for event_source in function.event_sources:
+                if not event_source.event_source_arn:
+                    continue
+                source_ref = add_node("event_source", event_source.event_source_arn)
+                relate(source_ref, function_ref, "invokes")
+
+        for bucket in resources.s3_buckets:
+            bucket_ref = add_node("s3", bucket.bucket_name, bucket.bucket_name)
+            for notification in bucket.notifications:
+                if notification.target_type != "lambda" or not notification.target_arn:
+                    continue
+                lambda_ref = add_node("lambda", notification.target_arn)
+                relate(bucket_ref, lambda_ref, "triggers")
+
         return AwsTopologyResult(
             relationships=self._deduplicate(relationships),
             nodes=sorted(nodes),

@@ -10,7 +10,7 @@ export const AWS_ISSUE_TYPES: AwsIssueTypeOption[] = [
   {
     value: "full_scan",
     label: "Full Scan",
-    description: "Detect all issues — security, EC2, network, load balancers, alarms, and changes",
+    description: "Detect all issues — security, compute, storage, network, load balancers, alarms, and changes",
   },
   {
     value: "security",
@@ -21,6 +21,16 @@ export const AWS_ISSUE_TYPES: AwsIssueTypeOption[] = [
     value: "ec2_availability",
     label: "EC2 Availability",
     description: "Stopped instances, health checks, and who stopped them",
+  },
+  {
+    value: "lambda",
+    label: "Lambda Functions",
+    description: "Function state, failed updates, VPC config, event sources, and execution role issues",
+  },
+  {
+    value: "s3",
+    label: "S3 Storage",
+    description: "Public buckets, encryption, versioning, access blocks, logging, and event notifications",
   },
   {
     value: "network",

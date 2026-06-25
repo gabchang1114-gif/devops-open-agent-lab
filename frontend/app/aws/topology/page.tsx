@@ -74,8 +74,8 @@ export default function AwsTopologyPage() {
               <p className="panel-subtitle mb-1">Resource Map</p>
               <h2 className="panel-title">AWS Infrastructure Topology</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
-                Interactive map of VPCs, subnets, load balancers, EC2 instances, security groups,
-                and their relationships in the selected region.
+                Interactive map of VPCs, subnets, load balancers, EC2 instances, Lambda functions,
+                S3 buckets, security groups, and their relationships in the selected region.
               </p>
             </div>
 

@@ -44,7 +44,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         payload = {
             "model": self.model,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
             "temperature": temperature,
             "system": system_prompt,
             "messages": chat_messages,

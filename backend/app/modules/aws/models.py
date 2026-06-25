@@ -12,6 +12,8 @@ CloudWatchWindow = Literal["1h", "24h", "7d"]
 AwsIssueType = Literal[
     "full_scan",
     "ec2_availability",
+    "lambda",
+    "s3",
     "security",
     "network",
     "load_balancer",
@@ -231,8 +233,59 @@ class AwsElasticIp(BaseModel):
     domain: str | None = None
 
 
+class AwsLambdaEventSource(BaseModel):
+    uuid: str
+    event_source_arn: str | None = None
+    event_source_type: str | None = None
+    state: str | None = None
+    batch_size: int | None = None
+
+
+class AwsLambdaFunction(BaseModel):
+    function_name: str
+    function_arn: str
+    runtime: str | None = None
+    handler: str | None = None
+    memory_size: int | None = None
+    timeout: int | None = None
+    state: str | None = None
+    state_reason: str | None = None
+    last_update_status: str | None = None
+    role: str | None = None
+    vpc_id: str | None = None
+    subnet_ids: list[str] = Field(default_factory=list)
+    security_group_ids: list[str] = Field(default_factory=list)
+    environment_keys: list[str] = Field(default_factory=list)
+    event_sources: list[AwsLambdaEventSource] = Field(default_factory=list)
+    tags: dict[str, str] = Field(default_factory=dict)
+    description: str | None = None
+
+
+class AwsS3BucketNotification(BaseModel):
+    target_type: str
+    target_arn: str | None = None
+    events: list[str] = Field(default_factory=list)
+
+
+class AwsS3Bucket(BaseModel):
+    bucket_name: str
+    region: str | None = None
+    creation_date: str | None = None
+    public_access_block: dict[str, bool | None] = Field(default_factory=dict)
+    encryption_enabled: bool | None = None
+    encryption_type: str | None = None
+    versioning_status: str | None = None
+    policy_is_public: bool | None = None
+    logging_enabled: bool | None = None
+    logging_target_bucket: str | None = None
+    notifications: list[AwsS3BucketNotification] = Field(default_factory=list)
+    tags: dict[str, str] = Field(default_factory=dict)
+
+
 class AwsResourceDiscoveryResult(BaseModel):
     ec2_instances: list[AwsEc2Instance] = Field(default_factory=list)
+    lambda_functions: list[AwsLambdaFunction] = Field(default_factory=list)
+    s3_buckets: list[AwsS3Bucket] = Field(default_factory=list)
     vpcs: list[AwsVpc] = Field(default_factory=list)
     security_groups: list[AwsSecurityGroup] = Field(default_factory=list)
     load_balancers: list[AwsLoadBalancer] = Field(default_factory=list)
@@ -282,10 +335,22 @@ class AwsCloudWatchAlarm(BaseModel):
     comparison_operator: str | None = None
 
 
+class AwsLambdaInvocationMetrics(BaseModel):
+    function_name: str
+    configured_timeout_sec: int | None = None
+    errors: int = 0
+    throttles: int = 0
+    max_duration_ms: float | None = None
+    avg_duration_ms: float | None = None
+    timeout_log_events: int = 0
+    duration_at_timeout: bool = False
+
+
 class AwsCloudWatchResult(BaseModel):
     collected: bool = False
     window: str = "24h"
     metrics: list[AwsMetricSample] = Field(default_factory=list)
+    lambda_metrics: list[AwsLambdaInvocationMetrics] = Field(default_factory=list)
     alarms: list[AwsCloudWatchAlarm] = Field(default_factory=list)
     error: str | None = None
 

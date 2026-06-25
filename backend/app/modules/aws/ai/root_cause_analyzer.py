@@ -1,12 +1,11 @@
 """AWS root cause analyzer using LLM providers."""
 
-import json
-import re
 from typing import Any
 
 from loguru import logger
 from pydantic import ValidationError
 
+from app.ai.json_utils import extract_json_object
 from app.ai.llm_factory import LLMProviderFactory
 from app.ai.providers.exceptions import LLMProviderError
 from app.core.config import Settings, get_settings
@@ -90,15 +89,7 @@ class AwsRootCauseAnalyzer:
             return DiagnosisResult.model_validate(recovered)
 
     def _extract_json(self, raw_response: str) -> dict[str, Any]:
-        text = raw_response.strip()
-        if text.startswith("```"):
-            match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
-            if match:
-                text = match.group(1).strip()
-        data = json.loads(text)
-        if not isinstance(data, dict):
-            raise ValueError("LLM response JSON must be an object")
-        return data
+        return extract_json_object(raw_response)
 
     def _recover_partial_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         evidence = payload.get("evidence", [])

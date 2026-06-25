@@ -105,7 +105,21 @@ Namespace-grouped resource map of services, deployments, replica sets, and pods.
 
 ### 6. AWS DevOps Agent
 
-Choose AWS account, region, and troubleshooting category such as full scan, security, EC2, or network.
+Choose AWS account, region, and troubleshooting category such as full scan, security, EC2, Lambda, S3, or network.
+
+![AWS services architecture — DevOps Open Agent to EC2, Lambda, S3, VPC, and observability](img/aws-services-diagram.png)
+
+| Service | What the agent discovers |
+|---------|--------------------------|
+| **EC2** | Instances, EBS volumes, state, tags |
+| **Lambda** | Functions, timeouts, CloudWatch invocation metrics |
+| **S3** | Buckets, encryption, versioning, public access |
+| **VPC** | Subnets, route tables, gateways |
+| **Security Groups** | Ingress/egress rules, internet exposure |
+| **Load Balancers** | ALB/NLB, target groups, health |
+| **Auto Scaling** | ASG capacity and instance membership |
+| **CloudWatch** | Alarms, Lambda metrics, evidence window |
+| **CloudTrail** | API changes, stop/start attribution |
 
 <p align="center">
   <img src="img/product-tour/06-aws-devops-agent.png" alt="AWS DevOps Agent" width="100%" />

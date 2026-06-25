@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="620" viewBox="0 0 1200 620">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B1220"/><stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.35"/></filter>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#F97316"/></marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#FBBF24"/></marker>
+  </defs>
+  <rect width="1200" height="620" rx="24" fill="url(#bg)"/>
+  <text x="600" y="42" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="24" font-weight="700">DevOps Open Agent — AWS Services Architecture</text>
+  <text x="600" y="68" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="14">One platform · AWS DevOps Agent · All supported services per region</text>
+  <g filter="url(#shadow)">
+    <rect x="70" y="195" width="220" height="220" rx="28" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <image x="95" y="210" width="170" height="170" xlink:href="devops-open-agent-icon.png"/>
+    <text x="180" y="390" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="18" font-weight="700">DevOps Open Agent</text>
+    <text x="180" y="412" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="12">AWS DevOps Agent module</text>
+  </g>
+  <line x1="290" y1="305" x2="430" y2="305" stroke="#F97316" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <g filter="url(#shadow)">
+    <rect x="430" y="230" width="240" height="150" rx="20" fill="#1E293B" stroke="#F97316" stroke-width="2"/>
+    <text x="550" y="278" text-anchor="middle" fill="#F97316" font-family="system-ui,sans-serif" font-size="13" font-weight="700">AWS SERVICES</text>
+    <text x="550" y="312" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="22" font-weight="700">Discovery</text>
+    <text x="550" y="339" text-anchor="middle" fill="#CBD5E1" font-family="system-ui,sans-serif" font-size="12">investigation_service.py</text>
+    <text x="550" y="359" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="11">Collectors · Topology · AI RCA</text>
+  </g>
+  <line x1="670" y1="305" x2="760" y2="305" stroke="#FBBF24" stroke-width="3"/>
+  <line x1="760" y1="145" x2="760" y2="465" stroke="#FBBF24" stroke-width="3"/>
+  <line x1="760" y1="465" x2="790" y2="465" stroke="#FBBF24" stroke-width="3" marker-end="url(#arrowAmber)"/>
+  <line x1="760" y1="305" x2="790" y2="305" stroke="#FBBF24" stroke-width="3" marker-end="url(#arrowAmber)"/>
+  <line x1="760" y1="145" x2="790" y2="145" stroke="#FBBF24" stroke-width="3" marker-end="url(#arrowAmber)"/>
+  <g filter="url(#shadow)">
+    <rect x="800" y="420" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="878" y="453" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">EC2</text>
+    <text x="878" y="471" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Instances & EBS</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="935" y="420" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1013" y="453" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">Lambda</text>
+    <text x="1013" y="471" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Functions & metrics</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1070" y="420" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1148" y="453" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">S3</text>
+    <text x="1148" y="471" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Buckets & posture</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="800" y="260" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="878" y="293" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">VPC</text>
+    <text x="878" y="311" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Subnets & routing</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="935" y="260" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1013" y="293" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="14" font-weight="700">Security Groups</text>
+    <text x="1013" y="311" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Ingress / egress</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1070" y="260" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1148" y="293" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="14" font-weight="700">Load Balancers</text>
+    <text x="1148" y="311" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">ALB / NLB / targets</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="800" y="100" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="878" y="133" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">Auto Scaling</text>
+    <text x="878" y="151" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">ASG capacity</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="935" y="100" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1013" y="133" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">CloudWatch</text>
+    <text x="1013" y="151" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">Metrics & alarms</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1070" y="100" width="125" height="90" rx="16" fill="#171B26" stroke="#334155" stroke-width="2"/>
+    <text x="1148" y="133" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="16" font-weight="700">CloudTrail</text>
+    <text x="1148" y="151" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="10">API audit events</text>
+  </g>
+  <text x="600" y="598" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Account &amp; region scoped · CloudWatch / CloudTrail lookback configurable · Focused modes per issue type</text>
+</svg>

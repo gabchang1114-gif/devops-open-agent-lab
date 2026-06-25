@@ -32,6 +32,9 @@ const AWS_KINDS = new Set([
   "target_group",
   "asg",
   "ec2",
+  "lambda",
+  "s3",
+  "event_source",
   "security_group",
   "ebs",
   "elastic_ip",
@@ -45,10 +48,13 @@ const AWS_COLUMN_KINDS: Record<string, number> = {
   nat_gateway: 0,
   route_table: 0,
   network_acl: 0,
+  s3: 0,
   load_balancer: 1,
   target_group: 1,
   asg: 1,
+  event_source: 1,
   ec2: 2,
+  lambda: 2,
   ebs: 2,
   elastic_ip: 2,
   security_group: 3,
@@ -62,6 +68,8 @@ export const AWS_LEGEND_ITEMS = [
   "load_balancer",
   "target_group",
   "ec2",
+  "lambda",
+  "s3",
   "security_group",
 ] as const;
 
@@ -97,6 +105,9 @@ const KIND_ORDER: Record<string, number> = {
   target_group: 5,
   asg: 6,
   ec2: 7,
+  lambda: 7,
+  s3: 6,
+  event_source: 5,
   security_group: 8,
   ebs: 9,
   elastic_ip: 10,
@@ -150,6 +161,12 @@ function formatKindLabel(kind: TopologyResourceKind): string {
       return "Elastic IP";
     case "iam_role":
       return "IAM Role";
+    case "lambda":
+      return "Lambda";
+    case "s3":
+      return "S3 Bucket";
+    case "event_source":
+      return "Event Source";
     default:
       return kind.charAt(0).toUpperCase() + kind.slice(1);
   }
@@ -617,17 +634,34 @@ export function filterTopology(
     return data;
   }
 
-  const relationships = data.relationships.filter(
-    (relationship) => !relationship.namespace || relationship.namespace === namespace,
-  );
-  const nodeIds = new Set<string>();
+  const namespaceNodeIds = new Set<string>();
+  for (const meta of data.graph_nodes ?? []) {
+    if ((meta.namespace || "default") === namespace) {
+      namespaceNodeIds.add(meta.id);
+    }
+  }
+
+  const relationships = data.relationships.filter((relationship) => {
+    if (relationship.namespace && relationship.namespace !== namespace) {
+      return false;
+    }
+    return (
+      namespaceNodeIds.has(relationship.source) || namespaceNodeIds.has(relationship.target)
+    );
+  });
+
+  const nodeIds = new Set(namespaceNodeIds);
   for (const relationship of relationships) {
     nodeIds.add(relationship.source);
     nodeIds.add(relationship.target);
   }
 
+  const scopedRelationships = relationships.filter(
+    (relationship) => nodeIds.has(relationship.source) && nodeIds.has(relationship.target),
+  );
+
   return {
-    relationships,
+    relationships: scopedRelationships,
     nodes: data.nodes.filter((node) => nodeIds.has(node)),
     graph_nodes: data.graph_nodes?.filter((node) => nodeIds.has(node.id)),
   };
@@ -778,6 +812,30 @@ export function getKindStyles(kind: string): {
         header: "bg-lime-600/25",
         badge: "text-lime-200",
         accent: "#84cc16",
+      };
+    case "lambda":
+      return {
+        border: "border-orange-500/35",
+        background: "bg-[#1a1208]",
+        header: "bg-orange-600/25",
+        badge: "text-orange-200",
+        accent: "#f97316",
+      };
+    case "s3":
+      return {
+        border: "border-green-500/35",
+        background: "bg-[#081a0f]",
+        header: "bg-green-600/25",
+        badge: "text-green-200",
+        accent: "#22c55e",
+      };
+    case "event_source":
+      return {
+        border: "border-teal-500/35",
+        background: "bg-[#081a18]",
+        header: "bg-teal-600/25",
+        badge: "text-teal-200",
+        accent: "#14b8a6",
       };
     default:
       return {

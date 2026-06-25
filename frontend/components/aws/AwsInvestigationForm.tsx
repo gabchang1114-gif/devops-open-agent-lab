@@ -10,6 +10,18 @@ const CLOUDWATCH_WINDOWS: { value: CloudWatchWindow; label: string }[] = [
   { value: "7d", label: "Last 7 days" },
 ];
 
+const SUPPORTED_AWS_SERVICES = [
+  "EC2",
+  "Lambda",
+  "S3",
+  "VPC",
+  "Security Groups",
+  "Load Balancers",
+  "Auto Scaling",
+  "CloudWatch",
+  "CloudTrail",
+] as const;
+
 interface AwsInvestigationFormProps {
   accounts: AwsAccountSummary[];
   accountId: string;
@@ -69,8 +81,22 @@ export function AwsInvestigationForm({
         <div>
           <h2 className="panel-title">Troubleshoot AWS Infrastructure</h2>
           <p className="text-xs text-slate-500">
-            Choose what to investigate, then collect evidence and run AI analysis
+            Discover EC2, Lambda, S3, networking, and load balancers — then run AI analysis
           </p>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <p className="section-label">Supported Services</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {SUPPORTED_AWS_SERVICES.map((service) => (
+            <span
+              key={service}
+              className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-200"
+            >
+              {service}
+            </span>
+          ))}
         </div>
       </div>
 

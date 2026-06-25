@@ -11,6 +11,7 @@ from app.modules.aws.ai.finding_rules import (
     analyze_security_groups,
 )
 from app.modules.aws.collectors.cloudtrail import STATE_CHANGE_EVENT_NAMES, TAG_EVENT_NAMES
+from app.modules.aws.investigation_scope import finding_categories
 from app.modules.aws.models import AwsInvestigationResponse
 
 ACTIVITY_METRICS = {"CPUUtilization", "NetworkIn", "NetworkOut", "DiskReadOps", "DiskWriteOps"}
@@ -38,11 +39,18 @@ class AwsContextBuilder:
         topology = payload.get("topology", {})
 
         ec2_instances = resources.get("ec2_instances", [])
+        lambda_functions = resources.get("lambda_functions", [])
+        s3_buckets = resources.get("s3_buckets", [])
         security_groups = resources.get("security_groups", [])
         target_groups = resources.get("target_groups", [])
         load_balancers = resources.get("load_balancers", [])
 
         ec2_findings = self._build_ec2_findings(ec2_instances)
+        lambda_findings = self._build_lambda_findings(
+            lambda_functions,
+            cloudwatch.get("lambda_metrics") or [],
+        )
+        s3_findings = self._build_s3_findings(s3_buckets)
         cloudtrail_findings = self._build_cloudtrail_findings(cloudtrail, ec2_instances)
         cloudwatch_findings = self._build_cloudwatch_findings(cloudwatch, ec2_instances)
         security_findings = self._build_security_findings(security_groups, cloudtrail_findings)
@@ -70,6 +78,8 @@ class AwsContextBuilder:
 
         finding_summary = self._build_finding_summary(
             ec2_findings=ec2_findings,
+            lambda_findings=lambda_findings,
+            s3_findings=s3_findings,
             security_findings=security_findings,
             load_balancer_findings=load_balancer_findings,
             auto_scaling_findings=auto_scaling_findings,
@@ -77,6 +87,7 @@ class AwsContextBuilder:
             cloudtrail_findings=cloudtrail_findings,
             incident_attribution=incident_attribution,
             discovery_assessment=discovery_assessment,
+            issue_type=troubleshooting_focus.get("issue_type", "full_scan"),
         )
 
         return {
@@ -86,6 +97,8 @@ class AwsContextBuilder:
             "investigation": investigation_ctx,
             "finding_summary": finding_summary,
             "ec2_findings": ec2_findings,
+            "lambda_findings": lambda_findings,
+            "s3_findings": s3_findings,
             "security_findings": security_findings,
             "incident_attribution": incident_attribution,
             "network_findings": network_findings,
@@ -162,6 +175,150 @@ class AwsContextBuilder:
             ),
         }
 
+    def _build_lambda_findings(
+        self,
+        functions: list[dict[str, Any]],
+        lambda_metrics: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        metrics_by_name = {
+            str(item.get("function_name")): item for item in (lambda_metrics or [])
+        }
+        problematic: list[dict[str, Any]] = []
+        for function in functions:
+            issues: list[str] = []
+            state = str(function.get("state") or "").lower()
+            last_update_status = str(function.get("last_update_status") or "").lower()
+            metrics = metrics_by_name.get(str(function.get("function_name")), {})
+
+            if state and state != "active":
+                issues.append(f"function state is {function.get('state')}")
+            if last_update_status and last_update_status not in {"successful", ""}:
+                issues.append(f"last update status is {function.get('last_update_status')}")
+            for event_source in function.get("event_sources") or []:
+                event_state = str(event_source.get("state") or "").lower()
+                if event_state and event_state not in {"enabled", "creating", "updating"}:
+                    issues.append(
+                        f"event source {event_source.get('event_source_arn')} is {event_source.get('state')}"
+                    )
+
+            errors = int(metrics.get("errors") or 0)
+            if errors > 0:
+                issues.append(f"{errors} invocation error(s) in CloudWatch lookback window")
+
+            timeout_log_events = int(metrics.get("timeout_log_events") or 0)
+            if timeout_log_events > 0:
+                issues.append(
+                    f"{timeout_log_events} timeout event(s) in CloudWatch Logs "
+                    f"(REPORT Status: timeout / Task timed out)"
+                )
+            elif metrics.get("duration_at_timeout"):
+                timeout_sec = function.get("timeout") or metrics.get("configured_timeout_sec")
+                max_duration = metrics.get("max_duration_ms")
+                issues.append(
+                    f"invocation duration reached configured timeout "
+                    f"({max_duration}ms max vs {timeout_sec}s timeout)"
+                )
+
+            throttles = int(metrics.get("throttles") or 0)
+            if throttles > 0:
+                issues.append(f"{throttles} throttle event(s) in CloudWatch lookback window")
+
+            if issues:
+                problematic.append(
+                    {
+                        "function_name": function.get("function_name"),
+                        "function_arn": function.get("function_arn"),
+                        "runtime": function.get("runtime"),
+                        "timeout": function.get("timeout"),
+                        "vpc_id": function.get("vpc_id"),
+                        "invocation_metrics": metrics,
+                        "issues": issues,
+                    }
+                )
+
+        return {
+            "total_functions": len(functions),
+            "functions": [
+                {
+                    "function_name": function.get("function_name"),
+                    "function_arn": function.get("function_arn"),
+                    "runtime": function.get("runtime"),
+                    "state": function.get("state"),
+                    "timeout": function.get("timeout"),
+                    "vpc_id": function.get("vpc_id"),
+                    "environment_keys": function.get("environment_keys") or [],
+                    "event_source_count": len(function.get("event_sources") or []),
+                    "invocation_metrics": metrics_by_name.get(str(function.get("function_name")), {}),
+                }
+                for function in functions
+            ],
+            "problematic_functions": problematic,
+            "healthy": len(problematic) == 0 if functions else None,
+            "status": (
+                "no_functions_discovered"
+                if not functions
+                else "healthy" if not problematic else "issues_found"
+            ),
+        }
+
+    def _build_s3_findings(self, buckets: list[dict[str, Any]]) -> dict[str, Any]:
+        problematic: list[dict[str, Any]] = []
+        for bucket in buckets:
+            issues: list[str] = []
+            if bucket.get("policy_is_public") is True:
+                issues.append("bucket policy is public")
+            public_access_block = bucket.get("public_access_block") or {}
+            if not public_access_block:
+                issues.append("public access block is not configured")
+            elif not all(
+                public_access_block.get(key) is True
+                for key in (
+                    "block_public_acls",
+                    "ignore_public_acls",
+                    "block_public_policy",
+                    "restrict_public_buckets",
+                )
+            ):
+                issues.append("public access block is not fully enabled")
+            if bucket.get("encryption_enabled") is False:
+                issues.append("default encryption is not enabled")
+            if bucket.get("versioning_status") not in {"Enabled", "enabled"}:
+                issues.append("versioning is not enabled")
+
+            if issues:
+                problematic.append(
+                    {
+                        "bucket_name": bucket.get("bucket_name"),
+                        "region": bucket.get("region"),
+                        "issues": issues,
+                        "policy_is_public": bucket.get("policy_is_public"),
+                        "encryption_enabled": bucket.get("encryption_enabled"),
+                    }
+                )
+
+        return {
+            "total_buckets": len(buckets),
+            "buckets": [
+                {
+                    "bucket_name": bucket.get("bucket_name"),
+                    "region": bucket.get("region"),
+                    "policy_is_public": bucket.get("policy_is_public"),
+                    "encryption_enabled": bucket.get("encryption_enabled"),
+                    "versioning_status": bucket.get("versioning_status"),
+                    "logging_enabled": bucket.get("logging_enabled"),
+                    "notification_count": len(bucket.get("notifications") or []),
+                }
+                for bucket in buckets
+            ],
+            "problematic_buckets": problematic,
+            "healthy": len(problematic) == 0 if buckets else None,
+            "status": (
+                "no_buckets_discovered"
+                if not buckets
+                else "healthy" if not problematic else "issues_found"
+            ),
+        }
+
     def _build_security_findings(
         self,
         security_groups: list[dict[str, Any]],
@@ -220,6 +377,8 @@ class AwsContextBuilder:
     def _build_finding_summary(
         self,
         ec2_findings: dict[str, Any],
+        lambda_findings: dict[str, Any],
+        s3_findings: dict[str, Any],
         security_findings: dict[str, Any],
         load_balancer_findings: dict[str, Any],
         auto_scaling_findings: dict[str, Any],
@@ -227,6 +386,7 @@ class AwsContextBuilder:
         cloudtrail_findings: dict[str, Any],
         incident_attribution: dict[str, Any],
         discovery_assessment: dict[str, Any] | None = None,
+        issue_type: str = "full_scan",
     ) -> dict[str, Any]:
         findings: list[dict[str, Any]] = []
 
@@ -405,6 +565,42 @@ class AwsContextBuilder:
                 }
             )
 
+        for function in lambda_findings.get("problematic_functions") or []:
+            issues = function.get("issues") or []
+            severity = "high" if any(
+                any(keyword in str(issue).lower() for keyword in ("timeout", "error", "state"))
+                for issue in issues
+            ) else "medium"
+            findings.append(
+                {
+                    "severity": severity,
+                    "category": "lambda",
+                    "title": f"Lambda issue on {function.get('function_name')}",
+                    "detail": "; ".join(issues),
+                    "resource_id": function.get("function_arn"),
+                }
+            )
+
+        for bucket in s3_findings.get("problematic_buckets") or []:
+            severity = "high" if bucket.get("policy_is_public") is True else "medium"
+            findings.append(
+                {
+                    "severity": severity,
+                    "category": "s3",
+                    "title": f"S3 security posture issue on {bucket.get('bucket_name')}",
+                    "detail": "; ".join(bucket.get("issues") or []),
+                    "resource_id": bucket.get("bucket_name"),
+                }
+            )
+
+        allowed_categories = finding_categories(issue_type)
+        if allowed_categories is not None:
+            findings = [
+                item
+                for item in findings
+                if str(item.get("category") or "other") in allowed_categories
+            ]
+
         findings.sort(key=lambda item: SEVERITY_ORDER.get(str(item.get("severity")), 99))
 
         by_category: dict[str, int] = {}
@@ -512,6 +708,7 @@ class AwsContextBuilder:
             if str(alarm.get("state_value") or "").upper() == "ALARM"
         ]
         metrics = cloudwatch.get("metrics") or []
+        lambda_metrics = cloudwatch.get("lambda_metrics") or []
         instance_activity = self._summarize_instance_activity(metrics, instances)
 
         return {
@@ -519,10 +716,28 @@ class AwsContextBuilder:
             "window": cloudwatch.get("window"),
             "alarms_in_alarm_state": alarming,
             "instance_activity": instance_activity,
+            "lambda_invocations": [
+                {
+                    "function_name": item.get("function_name"),
+                    "configured_timeout_sec": item.get("configured_timeout_sec"),
+                    "errors": item.get("errors"),
+                    "throttles": item.get("throttles"),
+                    "max_duration_ms": item.get("max_duration_ms"),
+                    "avg_duration_ms": item.get("avg_duration_ms"),
+                    "timeout_log_events": item.get("timeout_log_events"),
+                    "duration_at_timeout": item.get("duration_at_timeout"),
+                }
+                for item in lambda_metrics
+            ],
             "metric_samples": metrics[: self.MAX_METRICS],
             "error": cloudwatch.get("error"),
-            "healthy": len(alarming) == 0 and all(
-                item.get("activity_status") == "active" for item in instance_activity
+            "healthy": len(alarming) == 0
+            and all(item.get("activity_status") == "active" for item in instance_activity)
+            and all(
+                int(item.get("errors") or 0) == 0
+                and int(item.get("timeout_log_events") or 0) == 0
+                and not item.get("duration_at_timeout")
+                for item in lambda_metrics
             ),
         }
 

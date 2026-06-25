@@ -18,7 +18,9 @@ from app.modules.aws.discovery import (
     AwsAccountDiscovery,
     AwsAutoScalingDiscovery,
     AwsEc2Discovery,
+    AwsLambdaDiscovery,
     AwsLoadBalancerDiscovery,
+    AwsS3Discovery,
     AwsSecurityGroupDiscovery,
     AwsVpcDiscovery,
 )
@@ -36,20 +38,23 @@ from app.modules.aws.models import (
     AwsTopologyResult,
 )
 from app.modules.aws.ai.root_cause_analyzer import AwsRootCauseAnalyzer
+from app.modules.aws.investigation_scope import discovery_scope
 from app.modules.aws.topology.builder import AwsTopologyBuilder
 
 ProgressCallback = Callable[[str, int], Awaitable[None] | None]
 
 AWS_STEP_PROGRESS = {
-    "Account Discovery": 8,
-    "EC2 Discovery": 18,
-    "Network Discovery": 28,
-    "Security Groups": 38,
-    "Load Balancers": 48,
-    "CloudWatch": 62,
-    "CloudTrail": 76,
+    "Account Discovery": 6,
+    "EC2 Discovery": 14,
+    "Lambda Discovery": 22,
+    "S3 Discovery": 28,
+    "Network Discovery": 34,
+    "Security Groups": 42,
+    "Load Balancers": 50,
+    "Topology": 58,
+    "CloudWatch": 68,
+    "CloudTrail": 78,
     "AWS Config": 86,
-    "Topology": 92,
     "AI Diagnosis": 100,
 }
 
@@ -60,6 +65,8 @@ class AWSInvestigationService:
     def __init__(self) -> None:
         self.account_discovery = AwsAccountDiscovery()
         self.ec2_discovery = AwsEc2Discovery()
+        self.lambda_discovery = AwsLambdaDiscovery()
+        self.s3_discovery = AwsS3Discovery()
         self.vpc_discovery = AwsVpcDiscovery()
         self.security_group_discovery = AwsSecurityGroupDiscovery()
         self.load_balancer_discovery = AwsLoadBalancerDiscovery()
@@ -102,6 +109,8 @@ class AWSInvestigationService:
             )
 
         instances, ebs_volumes, elastic_ips = await self.ec2_discovery.discover(region)
+        lambda_functions = await self.lambda_discovery.discover(region)
+        s3_buckets = await self.s3_discovery.discover(region)
         vpcs = await self.vpc_discovery.discover(region)
 
         instance_security_map = {
@@ -116,6 +125,8 @@ class AWSInvestigationService:
 
         resources = AwsResourceDiscoveryResult(
             ec2_instances=instances,
+            lambda_functions=lambda_functions,
+            s3_buckets=s3_buckets,
             vpcs=vpcs,
             security_groups=security_groups,
             load_balancers=load_balancers,
@@ -150,25 +161,67 @@ class AWSInvestigationService:
                     "Cross-account role assumption is not implemented yet."
                 )
 
-            await self._report_progress(on_progress, "EC2 Discovery")
-            instances, ebs_volumes, elastic_ips = await self.ec2_discovery.discover(request.region)
-            await self._report_progress(on_progress, "Network Discovery")
-            vpcs = await self.vpc_discovery.discover(request.region)
+            scope = discovery_scope(request.issue_type)
 
-            instance_security_map = {
-                instance.instance_id: instance.security_groups for instance in instances
-            }
-            await self._report_progress(on_progress, "Security Groups")
-            security_groups = await self.security_group_discovery.discover(
-                request.region,
-                instance_security_map,
-            )
-            await self._report_progress(on_progress, "Load Balancers")
-            load_balancers, target_groups = await self.load_balancer_discovery.discover(request.region)
-            auto_scaling_groups = await self.autoscaling_discovery.discover(request.region)
+            instances: list = []
+            ebs_volumes: list = []
+            elastic_ips: list = []
+            if "ec2" in scope:
+                await self._report_progress(on_progress, "EC2 Discovery")
+                instances, ebs_volumes, elastic_ips = await self.ec2_discovery.discover(request.region)
+            else:
+                notes.append(
+                    f"Skipped EC2 discovery for focused troubleshooting mode: {request.issue_type}."
+                )
+
+            lambda_functions: list = []
+            if "lambda" in scope:
+                await self._report_progress(on_progress, "Lambda Discovery")
+                lambda_functions = await self.lambda_discovery.discover(request.region)
+            else:
+                notes.append(
+                    f"Skipped Lambda discovery for focused troubleshooting mode: {request.issue_type}."
+                )
+
+            s3_buckets: list = []
+            if "s3" in scope:
+                await self._report_progress(on_progress, "S3 Discovery")
+                s3_buckets = await self.s3_discovery.discover(request.region)
+            else:
+                notes.append(
+                    f"Skipped S3 discovery for focused troubleshooting mode: {request.issue_type}."
+                )
+
+            vpcs: list = []
+            if "network" in scope:
+                await self._report_progress(on_progress, "Network Discovery")
+                vpcs = await self.vpc_discovery.discover(request.region)
+
+            security_groups: list = []
+            if "security_groups" in scope:
+                instance_security_map = {
+                    instance.instance_id: instance.security_groups for instance in instances
+                }
+                await self._report_progress(on_progress, "Security Groups")
+                security_groups = await self.security_group_discovery.discover(
+                    request.region,
+                    instance_security_map,
+                )
+
+            load_balancers: list = []
+            target_groups: list = []
+            auto_scaling_groups: list = []
+            if "load_balancers" in scope:
+                await self._report_progress(on_progress, "Load Balancers")
+                load_balancers, target_groups = await self.load_balancer_discovery.discover(
+                    request.region
+                )
+                auto_scaling_groups = await self.autoscaling_discovery.discover(request.region)
 
             resources = AwsResourceDiscoveryResult(
                 ec2_instances=instances,
+                lambda_functions=lambda_functions,
+                s3_buckets=s3_buckets,
                 vpcs=vpcs,
                 security_groups=security_groups,
                 load_balancers=load_balancers,
@@ -185,16 +238,25 @@ class AWSInvestigationService:
                 request.region,
                 instances,
                 window=request.cloudwatch_window,
+                lambda_functions=lambda_functions,
             )
             await self._report_progress(on_progress, "CloudTrail")
-            cloudtrail = await self.cloudtrail_collector.collect(
-                request.region,
-                instances=instances,
-                security_groups=security_groups,
-                cloudwatch_window=request.cloudwatch_window,
+            cloudtrail = (
+                await self.cloudtrail_collector.collect(
+                    request.region,
+                    instances=instances,
+                    security_groups=security_groups,
+                    cloudwatch_window=request.cloudwatch_window,
+                )
+                if instances or security_groups
+                else AwsCloudTrailResult(collected=False, lookback_hours=24)
             )
             await self._report_progress(on_progress, "AWS Config")
-            aws_config = await self.config_collector.collect(request.region, instances)
+            aws_config = (
+                await self.config_collector.collect(request.region, instances)
+                if instances
+                else AwsConfigResult(enabled=False)
+            )
             deployment_correlation = await self.deployment_correlation_collector.collect()
 
             investigation = AwsInvestigationContext(
@@ -205,6 +267,8 @@ class AWSInvestigationService:
                 query=request.query,
                 resource_counts={
                     "ec2_instances": len(instances),
+                    "lambda_functions": len(lambda_functions),
+                    "s3_buckets": len(s3_buckets),
                     "vpcs": len(vpcs),
                     "security_groups": len(security_groups),
                     "load_balancers": len(load_balancers),

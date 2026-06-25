@@ -129,6 +129,8 @@ def build_discovery_assessment(
 
     has_actionable_findings = bool(
         resource_counts.get("ec2_instances")
+        or resource_counts.get("lambda_functions")
+        or resource_counts.get("s3_buckets")
         or resource_counts.get("security_groups")
         or resource_counts.get("load_balancers")
         or resource_counts.get("topology_relationships")
