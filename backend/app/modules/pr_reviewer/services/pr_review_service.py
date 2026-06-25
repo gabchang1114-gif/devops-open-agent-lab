@@ -9,6 +9,7 @@ from app.modules.pr_reviewer.ai.review_analyzer import PrReviewAnalyzer
 from app.modules.pr_reviewer.ai.review_formatter import format_review_markdown
 from app.modules.pr_reviewer.github.github_client import GitHubClient, GitHubClientError
 from app.modules.pr_reviewer.models.schemas import PrWebhookPayload
+from app.notifications.slack_notification_service import slack_notification_service
 from app.storage.factory import get_pr_review_store
 from app.storage.pr_review_store import PrReviewStore
 
@@ -50,8 +51,9 @@ class PrReviewService:
         repo: str,
         pull_request_number: int,
         metadata: PrWebhookPayload | None = None,
+        user_id: str | None = None,
     ) -> str:
-        review_id = await self.store.create(owner, repo, pull_request_number)
+        review_id = await self.store.create(owner, repo, pull_request_number, user_id=user_id)
         return review_id
 
     async def process_review(
@@ -137,6 +139,18 @@ class PrReviewService:
                 findings_count=len(analysis.findings),
                 final_recommendation=analysis.final_recommendation,
                 github_comment_url=comment_url or None,
+            )
+            review_record = await self.store.get(review_id)
+            slack_notification_service.schedule_pr_review_notification(
+                review_id=review_id,
+                owner=owner,
+                repository=repo,
+                pull_request_number=pull_request_number,
+                pull_request_title=pr.pull_request_title,
+                overall_risk=analysis.overall_risk,
+                final_recommendation=analysis.final_recommendation,
+                findings_count=len(analysis.findings),
+                user_id=(review_record or {}).get("user_id"),
             )
             logger.info(
                 "PR review completed | review_id={} repo={}/{} pr={}",

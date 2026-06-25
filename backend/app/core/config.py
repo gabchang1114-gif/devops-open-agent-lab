@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     github_private_key: str = ""
     github_installation_id: str = ""
 
+    # Slack notifications (optional instance-level defaults)
+    slack_bot_token: str = ""
+    slack_instance_webhook_url: str = ""
+    public_app_url: str = Field(
+        default="http://localhost:3000",
+        description="Public frontend URL for links in Slack messages",
+    )
+
     @property
     def cors_origins(self) -> list[str]:
         if not self.cors_origins_raw.strip():

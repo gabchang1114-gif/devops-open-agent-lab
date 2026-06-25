@@ -59,18 +59,43 @@ class PrReviewStore:
                 """
             )
             connection.commit()
+            self._ensure_schema(connection)
         logger.info("PR review store initialized | path={}", self.database_path)
+
+    def _ensure_schema(self, connection: sqlite3.Connection) -> None:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(pr_reviews)").fetchall()
+        }
+        if "user_id" not in columns:
+            connection.execute("ALTER TABLE pr_reviews ADD COLUMN user_id TEXT")
+            connection.commit()
 
     @staticmethod
     def utc_now() -> str:
         return datetime.now(timezone.utc).isoformat()
 
-    async def create(self, owner: str, repository: str, pull_request_number: int) -> str:
+    async def create(
+        self,
+        owner: str,
+        repository: str,
+        pull_request_number: int,
+        user_id: str | None = None,
+    ) -> str:
         return await asyncio.to_thread(
-            self._create_sync, owner, repository, pull_request_number
+            self._create_sync,
+            owner,
+            repository,
+            pull_request_number,
+            user_id,
         )
 
-    def _create_sync(self, owner: str, repository: str, pull_request_number: int) -> str:
+    def _create_sync(
+        self,
+        owner: str,
+        repository: str,
+        pull_request_number: int,
+        user_id: str | None = None,
+    ) -> str:
         review_id = str(uuid.uuid4())
         now = self.utc_now()
         with self._connect() as connection:
@@ -78,8 +103,8 @@ class PrReviewStore:
                 """
                 INSERT INTO pr_reviews (
                     id, owner, repository, pull_request_number, status, current_step,
-                    progress_percentage, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    progress_percentage, user_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     review_id,
@@ -89,6 +114,7 @@ class PrReviewStore:
                     "queued",
                     "queued",
                     0,
+                    user_id,
                     now,
                     now,
                 ),

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { SystemStatus } from "@/components/SystemStatus";
-import { getActiveAgent, PLATFORM, PLATFORM_AGENTS } from "@/lib/platform";
+import { getActiveAgent, getActiveIntegration, PLATFORM, PLATFORM_AGENTS, PLATFORM_INTEGRATIONS } from "@/lib/platform";
 
 function isNavActive(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -17,6 +17,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const activeAgent = getActiveAgent(pathname);
+  const activeIntegration = getActiveIntegration(pathname);
+  const sectionName = activeIntegration?.name ?? activeAgent.name;
+  const subNav = activeIntegration?.nav ?? activeAgent.nav;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950">
@@ -83,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-base leading-relaxed text-slate-400 sm:text-lg">
                 {PLATFORM.tagline}
               </p>
-              <p className="mt-3 text-sm font-medium text-slate-300">{activeAgent.name}</p>
+              <p className="mt-3 text-sm font-medium text-slate-300">{sectionName}</p>
             </div>
 
             <div className="flex shrink-0 flex-col gap-3 lg:items-end">
@@ -107,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <nav className="mt-8 flex flex-wrap gap-2 border-b border-white/[0.06]">
             {PLATFORM_AGENTS.map((agent) => {
-              const active = activeAgent.id === agent.id;
+              const active = !activeIntegration && activeAgent.id === agent.id;
               return (
                 <Link
                   key={agent.id}
@@ -128,11 +131,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            <Link
+              href={PLATFORM_INTEGRATIONS.href}
+              className={`relative px-4 py-3 text-sm font-medium transition ${
+                activeIntegration ? "text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {PLATFORM_INTEGRATIONS.name}
+              {activeIntegration && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand-500" />
+              )}
+            </Link>
           </nav>
 
-          {activeAgent.nav.length > 0 && (
+          {subNav.length > 0 && (
             <nav className="mt-3 flex gap-2 border-b border-white/[0.04]">
-              {activeAgent.nav.map((item) => {
+              {subNav.map((item) => {
                 const active = isNavActive(pathname, item.href);
                 return (
                   <Link

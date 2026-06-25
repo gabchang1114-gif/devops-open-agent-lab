@@ -19,6 +19,24 @@ export interface PlatformAgent {
   matchesPath: (pathname: string) => boolean;
 }
 
+export interface PlatformIntegration {
+  id: string;
+  name: string;
+  href: string;
+  description: string;
+  nav: AgentNavItem[];
+  matchesPath: (pathname: string) => boolean;
+}
+
+export const PLATFORM_INTEGRATIONS: PlatformIntegration = {
+  id: "integrations",
+  name: "Integrations",
+  href: "/integrations/slack",
+  description: "Connect DevOps Open Agent with external tools like Slack.",
+  nav: [{ href: "/integrations/slack", label: "Slack" }],
+  matchesPath: (pathname) => pathname.startsWith("/integrations"),
+};
+
 export const PLATFORM_AGENTS: PlatformAgent[] = [
   {
     id: "kubernetes",
@@ -82,6 +100,18 @@ export function getActiveAgent(pathname: string): PlatformAgent {
   return (
     PLATFORM_AGENTS.find((agent) => agent.matchesPath(pathname)) ?? PLATFORM_AGENTS[0]
   );
+}
+
+export function getActiveIntegration(pathname: string): PlatformIntegration | null {
+  return PLATFORM_INTEGRATIONS.matchesPath(pathname) ? PLATFORM_INTEGRATIONS : null;
+}
+
+export function getActiveSectionName(pathname: string): string {
+  const integration = getActiveIntegration(pathname);
+  if (integration) {
+    return integration.name;
+  }
+  return getActiveAgent(pathname).name;
 }
 
 export function formatAgentType(agentType?: string | null): string {

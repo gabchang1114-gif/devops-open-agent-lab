@@ -74,7 +74,7 @@ async def github_webhook(
 async def manual_review(
     request: ManualReviewRequest,
     background_tasks: BackgroundTasks,
-    _current_user: UserResponse = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> ReviewStartResponse:
     settings = get_settings()
     if not settings.github_token.strip():
@@ -84,6 +84,7 @@ async def manual_review(
         request.owner,
         request.repo,
         request.pull_request_number,
+        user_id=str(current_user.id),
     )
     background_tasks.add_task(
         review_service.process_review,

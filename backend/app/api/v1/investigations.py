@@ -23,9 +23,12 @@ job_service = InvestigationJobService()
 async def start_investigation(
     request: InvestigationRequest,
     background_tasks: BackgroundTasks,
-    _current_user: UserResponse = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> InvestigationStartResponse:
-    investigation_id = await job_service.start_investigation(request)
+    investigation_id = await job_service.start_investigation(
+        request,
+        user_id=str(current_user.id),
+    )
     background_tasks.add_task(job_service.run_investigation, investigation_id, request)
     return InvestigationStartResponse(
         investigation_id=investigation_id,

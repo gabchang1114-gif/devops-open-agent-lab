@@ -19,6 +19,7 @@ class BaseInvestigationStore(ABC):
         cluster_id: str,
         include_ai: bool,
         agent_type: str = "kubernetes",
+        user_id: str | None = None,
     ) -> None:
         raise NotImplementedError
 

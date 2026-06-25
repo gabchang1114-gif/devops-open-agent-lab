@@ -9,6 +9,7 @@ from app.api.v1 import auth as auth_v1
 from app.api.v1 import clusters as clusters_v1
 from app.api.v1 import diagnose as diagnose_v1
 from app.api.v1 import health as health_v1
+from app.api.v1 import integrations as integrations_v1
 from app.api.v1 import investigations as investigations_v1
 from app.api.v1 import system as system_v1
 from app.api.v1 import topology as topology_v1
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(aws_v1, prefix="/api/v1")
     app.include_router(cloud_cost_v1, prefix="/api/v1")
     app.include_router(pr_reviewer_v1, prefix="/api/v1")
+    app.include_router(integrations_v1.router, prefix="/api/v1")
 
     return app
 

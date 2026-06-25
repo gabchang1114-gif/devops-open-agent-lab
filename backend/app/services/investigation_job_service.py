@@ -11,6 +11,7 @@ from app.modules.aws.investigation_service import AWSInvestigationService
 from app.modules.aws.models import AwsInvestigationRequest, AwsInvestigationResponse
 from app.modules.cloud_cost_detector.services.investigation_service import CloudCostInvestigationService
 from app.modules.cloud_cost_detector.models.schemas import CloudCostInvestigationResponse
+from app.notifications.slack_notification_service import slack_notification_service
 from app.services.diagnosis_service import DiagnosisService
 from app.services.investigation_service import InvestigationService
 from app.storage.base import BaseInvestigationStore
@@ -36,7 +37,11 @@ class InvestigationJobService:
     async def initialize(self) -> None:
         await self.store.initialize()
 
-    async def start_investigation(self, request: InvestigationRequest) -> str:
+    async def start_investigation(
+        self,
+        request: InvestigationRequest,
+        user_id: str | None = None,
+    ) -> str:
         investigation_id = str(uuid.uuid4())
         scope_id = (
             f"{request.account_id}/{request.region}"
@@ -48,6 +53,7 @@ class InvestigationJobService:
             scope_id,
             request.include_ai,
             agent_type=request.agent_type,
+            user_id=user_id,
         )
         return investigation_id
 
@@ -100,6 +106,12 @@ class InvestigationJobService:
                     result=response.model_dump(mode="json"),
                     root_cause=diagnosis.root_cause,
                     confidence=diagnosis.confidence_score,
+                )
+                await self._notify_slack(
+                    investigation_id,
+                    agent_type="kubernetes",
+                    scope_label=request.cluster_id or "unknown",
+                    diagnosis=diagnosis,
                 )
                 return
 
@@ -169,6 +181,13 @@ class InvestigationJobService:
                 root_cause=diagnosis.root_cause if diagnosis else None,
                 confidence=diagnosis.confidence_score if diagnosis else None,
             )
+            if diagnosis:
+                await self._notify_slack(
+                    investigation_id,
+                    agent_type="aws",
+                    scope_label=f"{request.account_id}/{request.region}",
+                    diagnosis=diagnosis,
+                )
         except Exception as exc:
             logger.exception("AWS investigation job failed | id={}", investigation_id)
             await self.store.fail(
@@ -213,6 +232,13 @@ class InvestigationJobService:
                 root_cause=diagnosis.root_cause if diagnosis else None,
                 confidence=diagnosis.confidence_score if diagnosis else None,
             )
+            if diagnosis:
+                await self._notify_slack(
+                    investigation_id,
+                    agent_type="cloud_cost",
+                    scope_label=f"{request.account_id}/{request.region}",
+                    diagnosis=diagnosis,
+                )
         except Exception as exc:
             logger.exception("Cloud cost investigation job failed | id={}", investigation_id)
             await self.store.fail(
@@ -257,3 +283,20 @@ class InvestigationJobService:
     @staticmethod
     def parse_result(record: dict) -> InvestigationResponse | None:
         return InvestigationJobService.parse_kubernetes_result(record)
+
+    async def _notify_slack(
+        self,
+        investigation_id: str,
+        agent_type: str,
+        scope_label: str,
+        diagnosis,
+    ) -> None:
+        record = await self.store.get_status(investigation_id)
+        user_id = record.get("user_id") if record else None
+        slack_notification_service.schedule_investigation_notification(
+            investigation_id=investigation_id,
+            agent_type=agent_type,
+            scope_label=scope_label,
+            diagnosis=diagnosis,
+            user_id=user_id,
+        )

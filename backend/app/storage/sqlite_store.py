@@ -59,6 +59,9 @@ class SQLiteInvestigationStore(BaseInvestigationStore):
                 "ALTER TABLE investigations ADD COLUMN agent_type TEXT NOT NULL DEFAULT 'kubernetes'"
             )
             connection.commit()
+        if "user_id" not in columns:
+            connection.execute("ALTER TABLE investigations ADD COLUMN user_id TEXT")
+            connection.commit()
 
     async def create(
         self,
@@ -66,9 +69,15 @@ class SQLiteInvestigationStore(BaseInvestigationStore):
         cluster_id: str,
         include_ai: bool,
         agent_type: str = "kubernetes",
+        user_id: str | None = None,
     ) -> None:
         await asyncio.to_thread(
-            self._create_sync, investigation_id, cluster_id, include_ai, agent_type
+            self._create_sync,
+            investigation_id,
+            cluster_id,
+            include_ai,
+            agent_type,
+            user_id,
         )
 
     def _create_sync(
@@ -77,6 +86,7 @@ class SQLiteInvestigationStore(BaseInvestigationStore):
         cluster_id: str,
         include_ai: bool,
         agent_type: str = "kubernetes",
+        user_id: str | None = None,
     ) -> None:
         now = self.utc_now()
         with self._connect() as connection:
@@ -84,8 +94,8 @@ class SQLiteInvestigationStore(BaseInvestigationStore):
                 """
                 INSERT INTO investigations (
                     id, cluster_id, agent_type, include_ai, status, current_step,
-                    progress_percentage, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    progress_percentage, user_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     investigation_id,
@@ -95,6 +105,7 @@ class SQLiteInvestigationStore(BaseInvestigationStore):
                     "running",
                     "Cluster Discovery",
                     0,
+                    user_id,
                     now,
                     now,
                 ),
