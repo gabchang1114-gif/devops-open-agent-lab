@@ -17,6 +17,7 @@ from app.integrations.slack.formatter import (
     format_test_slack_payload,
 )
 from app.models.diagnosis import DiagnosisResult
+from app.services.slack_cooldown_service import SlackCooldownService
 from app.services.slack_settings_service import SlackSettingsService
 
 
@@ -26,9 +27,11 @@ class SlackNotificationService:
     def __init__(
         self,
         settings_service: SlackSettingsService | None = None,
+        cooldown_service: SlackCooldownService | None = None,
         client: SlackClient | None = None,
     ) -> None:
         self.settings_service = settings_service or SlackSettingsService()
+        self.cooldown_service = cooldown_service or SlackCooldownService()
         self.client = client or SlackClient()
         self.settings = get_settings()
 
@@ -102,11 +105,7 @@ class SlackNotificationService:
         diagnosis: DiagnosisResult,
         user_id: str | None,
     ) -> None:
-        try:
-            parsed_user_id = UUID(user_id) if user_id else None
-        except ValueError:
-            parsed_user_id = None
-
+        parsed_user_id = self._parse_user_id(user_id)
         app_url = self._investigation_url(agent_type, investigation_id)
         payload = format_diagnosis_slack_payload(
             agent_type=agent_type,
@@ -122,27 +121,30 @@ class SlackNotificationService:
                 parsed_user_id,
                 agent_type=agent_type,
             )
+            if not webhook_url and not channel:
+                logger.debug(
+                    "Slack notification skipped | no delivery configured | investigation_id={}",
+                    investigation_id,
+                )
+                return
 
-        if not webhook_url and not channel:
-            logger.debug(
-                "Slack notification skipped | no delivery configured | investigation_id={}",
-                investigation_id,
-            )
-            return
+            if await self._skip_for_cooldown(session, parsed_user_id, investigation_id):
+                return
 
-        try:
-            await self._deliver(webhook_url, channel, payload)
-            logger.info(
-                "Slack investigation notification sent | id={} agent={}",
-                investigation_id,
-                agent_type,
-            )
-        except SlackDeliveryError as exc:
-            logger.warning(
-                "Slack investigation notification failed | id={} error={}",
-                investigation_id,
-                exc,
-            )
+            try:
+                await self._deliver(webhook_url, channel, payload)
+                await self.cooldown_service.mark_sent(session, parsed_user_id)
+                logger.info(
+                    "Slack investigation notification sent | id={} agent={}",
+                    investigation_id,
+                    agent_type,
+                )
+            except SlackDeliveryError as exc:
+                logger.warning(
+                    "Slack investigation notification failed | id={} error={}",
+                    investigation_id,
+                    exc,
+                )
 
     async def _notify_pr_review(
         self,
@@ -157,11 +159,7 @@ class SlackNotificationService:
         findings_count: int,
         user_id: str | None,
     ) -> None:
-        try:
-            parsed_user_id = UUID(user_id) if user_id else None
-        except ValueError:
-            parsed_user_id = None
-
+        parsed_user_id = self._parse_user_id(user_id)
         app_url = self._pr_review_url(review_id)
         payload = format_pr_review_slack_payload(
             owner=owner,
@@ -181,23 +179,53 @@ class SlackNotificationService:
                 parsed_user_id,
                 agent_type="pr_reviewer",
             )
+            if not webhook_url and not channel:
+                logger.debug(
+                    "Slack PR notification skipped | no delivery configured | review_id={}",
+                    review_id,
+                )
+                return
 
-        if not webhook_url and not channel:
-            logger.debug(
-                "Slack PR notification skipped | no delivery configured | review_id={}",
-                review_id,
-            )
-            return
+            if await self._skip_for_cooldown(session, parsed_user_id, review_id):
+                return
 
+            try:
+                await self._deliver(webhook_url, channel, payload)
+                await self.cooldown_service.mark_sent(session, parsed_user_id)
+                logger.info("Slack PR review notification sent | id={}", review_id)
+            except SlackDeliveryError as exc:
+                logger.warning(
+                    "Slack PR review notification failed | id={} error={}",
+                    review_id,
+                    exc,
+                )
+
+    async def _skip_for_cooldown(
+        self,
+        session: AsyncSession,
+        user_id: UUID | None,
+        reference_id: str,
+    ) -> bool:
+        remaining = await self.cooldown_service.seconds_until_send_allowed(session, user_id)
+        if remaining <= 0:
+            return False
+        minutes = max(1, remaining // 60)
+        logger.info(
+            "Slack notification suppressed by cooldown | ref={} user={} retry_in_minutes≈{}",
+            reference_id,
+            user_id or "instance",
+            minutes,
+        )
+        return True
+
+    @staticmethod
+    def _parse_user_id(user_id: str | None) -> UUID | None:
+        if not user_id:
+            return None
         try:
-            await self._deliver(webhook_url, channel, payload)
-            logger.info("Slack PR review notification sent | id={}", review_id)
-        except SlackDeliveryError as exc:
-            logger.warning(
-                "Slack PR review notification failed | id={} error={}",
-                review_id,
-                exc,
-            )
+            return UUID(user_id)
+        except ValueError:
+            return None
 
     async def _deliver(
         self,

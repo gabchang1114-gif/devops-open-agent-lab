@@ -4,17 +4,17 @@
 
 # DevOps Open Agent
 
-**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance — then deliver recommendations to **Slack**.
+**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance — reactively on demand or **proactively on a schedule** — then deliver recommendations to **Slack** without alert fatigue.
 
 ## Modules
 
 | Module | Description |
 |--------|-------------|
-| **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology |
+| **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology — **on demand or on a schedule** |
 | **AWS DevOps Agent** | Troubleshoot AWS infrastructure — EC2, **Lambda**, **S3**, VPC, load balancers, CloudWatch, and more |
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
-| **Integrations (Slack)** | Post AI recommendations from any agent to your preferred Slack channel |
+| **Integrations (Slack)** | Post AI recommendations from any agent to your preferred Slack channel (with hourly cooldown) |
 
 ## Demo Video
 
@@ -34,11 +34,12 @@ The demo covers:
 2. **Live investigations** — discovery, evidence collection, topology, and progress tracking  
 3. **AI diagnosis** — root cause, suggested fixes, confidence scores, and validation steps  
 4. **Slack integration** — sending AI recommendations to your team's channel  
-5. **Self-hosted setup** — running locally with Docker Compose and your choice of LLM provider  
+5. **Proactive schedules** — recurring Kubernetes investigations with AI diagnosis  
+6. **Self-hosted setup** — running locally with Docker Compose and your choice of LLM provider  
 
 ## Tech Stack
 
-- **Backend:** Python 3.12, FastAPI, SQLite, PostgreSQL (auth), shared LLM providers
+- **Backend:** Python 3.12, FastAPI, SQLite, PostgreSQL (auth + schedules), APScheduler, shared LLM providers
 - **Frontend:** Next.js 15, TypeScript, Tailwind CSS, TanStack Query
 - **Runtime:** Docker Compose
 
@@ -89,6 +90,7 @@ Configure per-user settings under **Integrations → Slack** in the UI, or set i
 ```env
 SLACK_INSTANCE_WEBHOOK_URL=https://hooks.slack.com/services/...
 SLACK_BOT_TOKEN=xoxb-...
+SLACK_NOTIFICATION_COOLDOWN_MINUTES=60
 PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -108,6 +110,57 @@ Regenerate the diagram: `python3 scripts/build_slack_flow_diagram.py`
 | **Incoming webhook** | Paste webhook URL in **Integrations → Slack** (simplest) |
 | **Bot channel** | Set `SLACK_BOT_TOKEN` on the server + channel name in the UI |
 | **Instance default** | Set `SLACK_INSTANCE_WEBHOOK_URL` in `backend/.env` (fallback for webhooks) |
+
+**Alert fatigue protection**
+
+Slack notifications are rate-limited to **one alert per hour per user** (default). Investigations and scheduled runs still complete and appear in the UI — only the Slack post is suppressed until the cooldown expires. Adjust in `backend/.env`:
+
+```env
+SLACK_NOTIFICATION_COOLDOWN_MINUTES=60
+```
+
+Set to `0` to disable the cooldown (not recommended for proactive schedules).
+
+## Proactive Kubernetes Schedules
+
+Move from **reactive** troubleshooting (run when something breaks) to **proactive** monitoring — schedule recurring Kubernetes investigations with the same AI pipeline used for manual runs.
+
+**UI:** Kubernetes Debugging Agent → **Schedules** (`/schedules`)
+
+| Schedule type | Description |
+|---------------|-------------|
+| **Every hour** | Runs at a chosen minute past each hour |
+| **Every day** | Runs once daily at a set time (UTC) |
+| **Every week** | Runs weekly on a chosen day and time (UTC) |
+| **Custom cron** | Full 5-field cron expression for advanced use |
+
+**Per schedule you can configure:**
+
+- Target **cluster** (required)
+- Optional **namespace** and **focus query**
+- **Include AI diagnosis** (recommended)
+- Enable / pause / edit / delete from the Schedules page
+
+**What happens on each run**
+
+1. A background job starts the same investigation flow as **Investigate Cluster**
+2. Results are saved to **Investigations** (view last run from the schedule card)
+3. If Slack is enabled, AI recommendations are posted — **at most once per hour** per user (see alert fatigue protection under [Slack Integrations](#slack-integrations))
+
+**Example:** an hourly schedule at `:00` runs 24 investigations per day, but Slack receives at most **24 alerts** capped to **~1 per hour** — not 24 messages in one hour.
+
+Schedules are stored per user in PostgreSQL and executed by **APScheduler** inside the backend process. Restart the backend after changing `backend/.env` or deploying updates.
+
+**API** (authenticated):
+
+| Method | Endpoint |
+|--------|----------|
+| `GET` | `/api/v1/kubernetes/schedules` |
+| `POST` | `/api/v1/kubernetes/schedules` |
+| `PUT` | `/api/v1/kubernetes/schedules/{id}` |
+| `DELETE` | `/api/v1/kubernetes/schedules/{id}` |
+
+> **Note:** Proactive schedules are available for the **Kubernetes Debugging Agent** today. AWS, Cloud Cost, and PR Reviewer scheduling may follow in future releases.
 
 ## AWS Lambda & S3
 
@@ -139,7 +192,7 @@ Regenerate the AWS services diagram: `python3 scripts/build_aws_services_diagram
 
 ## Architecture
 
-Application request flow: the browser talks to the Next.js frontend, which calls the FastAPI backend. The API routes requests to agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer), each using a shared AI layer and persisting results to SQLite or PostgreSQL.
+Application request flow: the browser talks to the Next.js frontend, which calls the FastAPI backend. The API routes requests to agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer), each using a shared AI layer and persisting results to SQLite or PostgreSQL. **Proactive schedules** trigger Kubernetes investigations via APScheduler; completed AI recommendations can flow to **Slack** with a configurable hourly cooldown.
 
 ![Application request flow](img/application-request-flow.png)
 
@@ -549,6 +602,7 @@ GITHUB_WEBHOOK_SECRET=
 # Slack notifications (optional — see Slack Integrations)
 # SLACK_INSTANCE_WEBHOOK_URL=https://hooks.slack.com/services/...
 # SLACK_BOT_TOKEN=xoxb-...
+# SLACK_NOTIFICATION_COOLDOWN_MINUTES=60
 # PUBLIC_APP_URL=http://localhost:3000
 
 DEFAULT_ADMIN_EMAIL=admin
@@ -731,8 +785,10 @@ open-devops-agent/
 │   └── app/
 │       ├── modules/      # Agent modules (aws, cloud_cost, pr_reviewer, ...)
 │       ├── ai/           # Shared LLM providers
+│       ├── notifications/# Slack delivery + cooldown
+│       ├── services/     # Investigation jobs, schedules, Slack settings
 │       └── storage/      # SQLite history stores
-├── frontend/             # Next.js UI
+├── frontend/             # Next.js UI (Investigate, Schedules, Integrations, …)
 ├── docker-compose.yml
 ├── install.sh            # macOS/Linux installer
 ├── docs/                 # Additional documentation

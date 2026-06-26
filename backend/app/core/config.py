@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # Slack notifications (optional instance-level defaults)
     slack_bot_token: str = ""
     slack_instance_webhook_url: str = ""
+    slack_notification_cooldown_minutes: int = Field(
+        default=60,
+        description="Minimum minutes between Slack alerts per user (reduces alert fatigue)",
+    )
     public_app_url: str = Field(
         default="http://localhost:3000",
         description="Public frontend URL for links in Slack messages",

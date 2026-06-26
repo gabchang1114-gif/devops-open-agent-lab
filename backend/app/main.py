@@ -11,6 +11,7 @@ from app.api.v1 import diagnose as diagnose_v1
 from app.api.v1 import health as health_v1
 from app.api.v1 import integrations as integrations_v1
 from app.api.v1 import investigations as investigations_v1
+from app.api.v1 import kubernetes_schedules as kubernetes_schedules_v1
 from app.api.v1 import system as system_v1
 from app.api.v1 import topology as topology_v1
 from app.core.aws_env import sanitize_aws_environment
@@ -24,6 +25,7 @@ from app.modules.aws.router import router as aws_v1
 from app.modules.cloud_cost_detector.api.routes import router as cloud_cost_v1
 from app.modules.pr_reviewer.api.routes import router as pr_reviewer_v1
 from app.services.investigation_job_service import InvestigationJobService
+from app.services.schedule_runner import schedule_runner
 from app.storage.factory import get_pr_review_store
 
 
@@ -39,6 +41,8 @@ async def lifespan(app: FastAPI):
     await init_auth_db()
     await seed_default_admin(settings)
     app.state.investigation_job_service = job_service
+    schedule_runner.bind_job_service(job_service)
+    await schedule_runner.start()
     logger.info(
         "Starting DevOps Open Agent | service={} version={} environment={}",
         settings.service_name,
@@ -46,6 +50,7 @@ async def lifespan(app: FastAPI):
         settings.app_env,
     )
     yield
+    await schedule_runner.shutdown()
     logger.info("Shutting down DevOps Open Agent")
 
 
@@ -95,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(cloud_cost_v1, prefix="/api/v1")
     app.include_router(pr_reviewer_v1, prefix="/api/v1")
     app.include_router(integrations_v1.router, prefix="/api/v1")
+    app.include_router(kubernetes_schedules_v1.router, prefix="/api/v1")
 
     return app
 

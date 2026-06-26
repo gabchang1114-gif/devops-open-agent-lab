@@ -46,11 +46,13 @@ export const PLATFORM_AGENTS: PlatformAgent[] = [
     available: true,
     nav: [
       { href: "/", label: "Investigate" },
+      { href: "/schedules", label: "Schedules" },
       { href: "/investigations", label: "Investigations" },
       { href: "/topology", label: "Topology" },
     ],
     matchesPath: (pathname) =>
       pathname === "/" ||
+      pathname.startsWith("/schedules") ||
       (pathname.startsWith("/investigations") &&
         !pathname.startsWith("/aws") &&
         !pathname.startsWith("/cloud-cost") &&

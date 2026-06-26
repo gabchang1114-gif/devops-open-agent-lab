@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +43,57 @@ class UserSlackIntegration(Base):
     notify_aws: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_cloud_cost: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_pr_reviewer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class SlackNotificationCooldown(Base):
+    __tablename__ = "slack_notification_cooldowns"
+
+    scope_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    last_sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class InvestigationSchedule(Base):
+    __tablename__ = "investigation_schedules"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    agent_type: Mapped[str] = mapped_column(String(32), nullable=False, default="kubernetes")
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    cluster_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    namespace: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    query: Mapped[str | None] = mapped_column(Text, nullable=True)
+    include_ai: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    schedule_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="daily")
+    hour: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    minute: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    cron_expression: Mapped[str] = mapped_column(String(64), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_investigation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

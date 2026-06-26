@@ -238,6 +238,11 @@ export function SlackIntegrationPage() {
             Webhook delivery is the simplest setup. Channel delivery uses a shared bot token
             configured by your platform admin.
           </li>
+          <li>
+            To prevent alert fatigue, Slack posts are limited to once per hour per user.
+            Investigations still run on schedule — results appear in Investigations even when
+            Slack is temporarily suppressed.
+          </li>
           {settings?.instance_webhook_configured && (
             <li>
               An instance-level webhook is configured and will be used as a fallback for
