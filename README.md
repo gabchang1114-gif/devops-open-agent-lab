@@ -4,16 +4,17 @@
 
 # DevOps Open Agent
 
-**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance.
+**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance — then deliver recommendations to **Slack**.
 
 ## Modules
 
 | Module | Description |
 |--------|-------------|
 | **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology |
-| **AWS DevOps Agent** | Troubleshoot AWS infrastructure across accounts and regions |
+| **AWS DevOps Agent** | Troubleshoot AWS infrastructure — EC2, **Lambda**, **S3**, VPC, load balancers, CloudWatch, and more |
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
+| **Integrations (Slack)** | Post AI recommendations from any agent to your preferred Slack channel |
 
 ## Demo Video
 
@@ -93,6 +94,49 @@ PUBLIC_APP_URL=http://localhost:3000
 
 Regenerate the diagram: `python3 scripts/build_slack_flow_diagram.py`
 
+**What gets posted to Slack**
+
+- Root cause, summary, suggested fix, and validation steps from AI investigations (Kubernetes, AWS, Cloud Cost)
+- Final recommendation and risk summary from PR reviews
+- Per-user channel or webhook under **Integrations → Slack** in the UI
+- Optional per-agent toggles (enable/disable notifications per module)
+
+**Setup options**
+
+| Method | Configure |
+|--------|-----------|
+| **Incoming webhook** | Paste webhook URL in **Integrations → Slack** (simplest) |
+| **Bot channel** | Set `SLACK_BOT_TOKEN` on the server + channel name in the UI |
+| **Instance default** | Set `SLACK_INSTANCE_WEBHOOK_URL` in `backend/.env` (fallback for webhooks) |
+
+## AWS Lambda & S3
+
+The AWS DevOps Agent includes **focused investigations** for **Lambda** and **S3** — discovery, evidence, topology, and AI diagnosis scoped to the service you select (without pulling unrelated EC2 noise into a Lambda timeout investigation).
+
+![AWS services architecture — DevOps Open Agent to EC2, Lambda, S3, VPC, and observability](img/aws-services-diagram.png)
+
+| Issue type (UI) | What is investigated |
+|-----------------|----------------------|
+| **Lambda** | Functions, configuration, timeouts, CloudWatch invocation metrics, log patterns (e.g. `Status: timeout`) |
+| **S3** | Buckets, encryption, versioning, public access block, bucket policy posture |
+| **Full scan** | EC2, Lambda, S3, VPC, security groups, load balancers, and observability |
+
+**Lambda highlights**
+
+- Detects misconfigured timeouts and invocation failures from CloudWatch
+- Parses Lambda logs for timeout and error signals
+- AI root cause analysis focused on function configuration and runtime evidence
+
+**S3 highlights**
+
+- Bucket-level security and compliance checks
+- Public access and encryption posture in investigation findings
+- AI recommendations for hardening misconfigured buckets
+
+In the UI: **AWS DevOps Agent → Investigate** → choose **Lambda** or **S3** as the troubleshooting category, then run with **AI diagnosis** enabled.
+
+Regenerate the AWS services diagram: `python3 scripts/build_aws_services_diagram.py`
+
 ## Architecture
 
 Application request flow: the browser talks to the Next.js frontend, which calls the FastAPI backend. The API routes requests to agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer), each using a shared AI layer and persisting results to SQLite or PostgreSQL.
@@ -147,9 +191,13 @@ Namespace-grouped resource map of services, deployments, replica sets, and pods.
 
 ### 6. AWS DevOps Agent
 
-Choose AWS account, region, and troubleshooting category such as full scan, security, EC2, Lambda, S3, or network.
+Choose AWS account, region, and troubleshooting category such as full scan, security, EC2, **Lambda**, **S3**, or network. See [AWS Lambda & S3](#aws-lambda--s3) for focused investigation details.
 
-![AWS services architecture — DevOps Open Agent to EC2, Lambda, S3, VPC, and observability](img/aws-services-diagram.png)
+<p align="center">
+  <img src="img/product-tour/06-aws-devops-agent.png" alt="AWS DevOps Agent" width="100%" />
+</p>
+
+**Supported AWS services**
 
 | Service | What the agent discovers |
 |---------|--------------------------|
@@ -163,13 +211,9 @@ Choose AWS account, region, and troubleshooting category such as full scan, secu
 | **CloudWatch** | Alarms, Lambda metrics, evidence window |
 | **CloudTrail** | API changes, stop/start attribution |
 
-<p align="center">
-  <img src="img/product-tour/06-aws-devops-agent.png" alt="AWS DevOps Agent" width="100%" />
-</p>
-
 ### 7. AWS Investigation
 
-AWS investigation pipeline covering EC2, network, security groups, load balancers, and observability.
+AWS investigation pipeline covering EC2, **Lambda**, **S3**, network, security groups, load balancers, and observability — with focused modes per issue type.
 
 <p align="center">
   <img src="img/product-tour/07-aws-investigation.png" alt="AWS investigation progress" width="100%" />
@@ -494,8 +538,18 @@ LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=gemma4:e4b
 
+# OpenRouter (optional — 100+ models)
+# LLM_PROVIDER=openrouter
+# OPENROUTER_API_KEY=sk-or-...
+# OPENROUTER_MODEL=openai/gpt-4o-mini
+
 GITHUB_TOKEN=
 GITHUB_WEBHOOK_SECRET=
+
+# Slack notifications (optional — see Slack Integrations)
+# SLACK_INSTANCE_WEBHOOK_URL=https://hooks.slack.com/services/...
+# SLACK_BOT_TOKEN=xoxb-...
+# PUBLIC_APP_URL=http://localhost:3000
 
 DEFAULT_ADMIN_EMAIL=admin
 DEFAULT_ADMIN_PASSWORD=admin123
