@@ -19,12 +19,15 @@
 | [../img/aws-services-diagram.png](../img/aws-services-diagram.png) | PNG | AWS DevOps Agent → supported services |
 | [../img/aws-services-diagram.svg](../img/aws-services-diagram.svg) | SVG | AWS services architecture (vector) |
 | [../img/llm-provider-diagram.png](../img/llm-provider-diagram.png) | PNG | Shared LLM provider architecture |
+| [../img/slack-flow-diagram.png](../img/slack-flow-diagram.png) | PNG | Platform → agents → AI analysis → Slack |
+| [../img/slack-flow-diagram.svg](../img/slack-flow-diagram.svg) | SVG | Slack notification flow (vector) |
 
-**Regenerate AWS / LLM diagrams:**
+**Regenerate AWS / LLM / Slack diagrams:**
 
 ```bash
 python3 scripts/build_aws_services_diagram.py
 python3 scripts/build_llm_diagram.py
+python3 scripts/build_slack_flow_diagram.py
 ```
 
 **Regenerate PNG/SVG from Mermaid:**

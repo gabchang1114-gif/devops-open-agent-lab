@@ -15,6 +15,26 @@
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
 
+## Demo Video
+
+Watch a full walkthrough of DevOps Open Agent — how the platform works across all four agents, AI root cause analysis, and Slack notifications.
+
+<p align="center">
+  <a href="https://youtu.be/3VT8MeSLt5s">
+    <img src="https://img.youtube.com/vi/3VT8MeSLt5s/hqdefault.jpg" alt="DevOps Open Agent demo video" width="640" />
+  </a>
+</p>
+
+**[▶ Watch on YouTube](https://youtu.be/3VT8MeSLt5s)**
+
+The demo covers:
+
+1. **Platform overview** — one UI for Kubernetes, AWS, cloud cost, and PR review workflows  
+2. **Live investigations** — discovery, evidence collection, topology, and progress tracking  
+3. **AI diagnosis** — root cause, suggested fixes, confidence scores, and validation steps  
+4. **Slack integration** — sending AI recommendations to your team's channel  
+5. **Self-hosted setup** — running locally with Docker Compose and your choice of LLM provider  
+
 ## Tech Stack
 
 - **Backend:** Python 3.12, FastAPI, SQLite, PostgreSQL (auth), shared LLM providers
@@ -50,6 +70,22 @@ After changing provider settings, restart the backend:
 ```bash
 docker compose up -d --force-recreate backend
 ```
+
+## Slack Integrations
+
+AI recommendations from investigations and PR reviews can be delivered to your preferred Slack channel (webhook or bot).
+
+![DevOps Open Agent — four agents, shared AI analysis, Slack notifications](img/slack-flow-diagram.png)
+
+Configure per-user settings under **Integrations → Slack** in the UI, or set instance defaults in `backend/.env`:
+
+```env
+SLACK_INSTANCE_WEBHOOK_URL=https://hooks.slack.com/services/...
+SLACK_BOT_TOKEN=xoxb-...
+PUBLIC_APP_URL=http://localhost:3000
+```
+
+Regenerate the diagram: `python3 scripts/build_slack_flow_diagram.py`
 
 ## Architecture
 
