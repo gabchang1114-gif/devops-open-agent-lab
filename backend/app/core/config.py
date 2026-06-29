@@ -87,6 +87,10 @@ class Settings(BaseSettings):
         description="Minimum minutes between PagerDuty alerts per user (reduces alert fatigue)",
     )
 
+    # MCP integrations (optional instance-level defaults)
+    mcp_instance_server_url: str = ""
+    mcp_instance_api_key: str = ""
+
     public_app_url: str = Field(
         default="http://localhost:3000",
         description="Public frontend URL for links in notification messages",

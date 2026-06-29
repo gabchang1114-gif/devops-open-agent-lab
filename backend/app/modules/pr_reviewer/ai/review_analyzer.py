@@ -25,8 +25,9 @@ class PrReviewAnalyzer:
         self,
         pr: PrWebhookPayload,
         files: list[PrFileInfo],
+        mcp_context: dict | None = None,
     ) -> PrReviewAnalysis:
-        messages = self.prompt_builder.build_messages(pr, files)
+        messages = self.prompt_builder.build_messages(pr, files, mcp_context=mcp_context)
         try:
             provider = LLMProviderFactory.create(settings=self.settings)
             raw_response = await provider.generate(messages, temperature=0.1)

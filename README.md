@@ -14,7 +14,7 @@
 | **AWS DevOps Agent** | Troubleshoot AWS infrastructure — EC2, **Lambda**, **S3**, VPC, load balancers, CloudWatch, and more |
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
-| **Integrations** | **Slack** and **PagerDuty** — post AI recommendations to your channel or trigger on-call incidents |
+| **Integrations** | **Slack**, **PagerDuty**, and **MCP** — notifications, on-call incidents, and external tool servers |
 
 ## Demo Video
 
@@ -81,7 +81,7 @@ docker compose up -d --force-recreate backend
 
 ## Integrations
 
-Deliver AI recommendations from investigations and PR reviews to the tools your team already uses. Configure everything under **Integrations** in the UI (`/integrations/slack` and `/integrations/pagerduty`).
+Deliver AI recommendations from investigations and PR reviews to the tools your team already uses — and enrich AI analysis with external MCP servers. Configure everything under **Integrations** in the UI.
 
 ![DevOps Open Agent — Integrations to PagerDuty and Slack](img/integrations-diagram.png)
 
@@ -91,8 +91,9 @@ Regenerate the diagram: `python3 scripts/build_integrations_diagram.py`
 |-------------|---------|----------|
 | **Slack** | Integrations → Slack | Team chat alerts, webhooks, channel delivery |
 | **PagerDuty** | Integrations → PagerDuty | On-call incidents, Events API v2, enterprise alerting |
+| **MCP** | Integrations → MCP | External tools & resources via Model Context Protocol |
 
-Both integrations support:
+Slack and PagerDuty support:
 
 - Per-user settings stored in PostgreSQL
 - Per-agent toggles (Kubernetes, AWS, Cloud Cost, PR Reviewer)
@@ -191,6 +192,66 @@ Same pattern as Slack — incidents are rate-limited per user (default **60 minu
 | `GET` | `/api/v1/integrations/pagerduty` |
 | `PUT` | `/api/v1/integrations/pagerduty` |
 | `POST` | `/api/v1/integrations/pagerduty/test` |
+
+### MCP (Model Context Protocol)
+
+Connect a remote **MCP server** to DevOps Open Agent for two workflows: **Ask MCP** (natural-language Q&A that calls remote tools) and **investigation enrichment** (inject discovered tools into AI diagnosis for Kubernetes, AWS, Cloud Cost, and PR Reviewer).
+
+![DevOps Open Agent — MCP integration architecture](img/mcp-integration-diagram.png)
+
+Regenerate the diagram: `python3 scripts/build_mcp_integration_diagram.py`
+
+Configure under **Integrations → MCP** (`/integrations/mcp`):
+
+| Setting | Description |
+|---------|-------------|
+| **MCP server URL** | Streamable HTTP endpoint (e.g. `https://api.githubcopilot.com/mcp/`) |
+| **API key** | Optional Bearer token for authenticated MCP servers |
+| **Agent toggles** | Choose which agents include MCP context during AI diagnosis |
+| **Ask MCP** | Text box to ask questions — the platform plans tool calls and returns a formatted answer |
+
+Optional instance defaults in `backend/.env`:
+
+```env
+MCP_INSTANCE_SERVER_URL=
+MCP_INSTANCE_API_KEY=
+```
+
+**Ask MCP (interactive Q&A)**
+
+1. You type a question in **Integrations → MCP** (e.g. *List open pull requests in org/repo*)
+2. DevOps Open Agent connects to your MCP server and discovers available tools
+3. The shared LLM selects which tool(s) to call and with what arguments
+4. Tool results are synthesized into a readable answer (with formatted tables for common outputs like pull requests)
+
+**Investigation enrichment (automatic)**
+
+1. Before AI diagnosis runs on an enabled agent, the platform probes your MCP server
+2. Discovered **tools** and **resources** are attached to the investigation payload
+3. The LLM uses that context for richer root cause analysis and PR reviews
+
+Use **Test connection** to verify URL and API key. After changing `backend/.env`, recreate the backend (not just restart) so new variables load:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+**API** (authenticated):
+
+| Method | Endpoint |
+|--------|----------|
+| `GET` | `/api/v1/integrations/mcp` |
+| `PUT` | `/api/v1/integrations/mcp` |
+| `POST` | `/api/v1/integrations/mcp/test` |
+| `POST` | `/api/v1/integrations/mcp/ask` |
+
+**Example GitHub MCP setup**
+
+| Field | Value |
+|-------|--------|
+| Server URL | `https://api.githubcopilot.com/mcp/` |
+| API key | GitHub personal access token (Bearer) |
+| Test | Should report tools such as `list_pull_requests`, `get_repository`, `add_issue_comment` |
 
 After changing integration settings in `backend/.env`, restart the backend:
 
@@ -690,6 +751,10 @@ GITHUB_WEBHOOK_SECRET=
 # PagerDuty notifications (optional — see Integrations)
 # PAGERDUTY_INSTANCE_ROUTING_KEY=
 # PAGERDUTY_NOTIFICATION_COOLDOWN_MINUTES=60
+
+# MCP server (optional — see Integrations)
+# MCP_INSTANCE_SERVER_URL=
+# MCP_INSTANCE_API_KEY=
 
 # PUBLIC_APP_URL=http://localhost:3000
 

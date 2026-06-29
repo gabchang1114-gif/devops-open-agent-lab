@@ -116,6 +116,7 @@ class AwsContextBuilder:
                 "kinds": self._summarize_topology_kinds(topology.get("graph_nodes") or []),
             },
             "resource_counts": investigation_ctx.get("resource_counts", {}),
+            "mcp_enrichment": payload.get("mcp_enrichment", {}),
         }
 
     def _build_ec2_findings(self, instances: list[dict[str, Any]]) -> dict[str, Any]:

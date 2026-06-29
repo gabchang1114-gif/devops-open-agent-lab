@@ -20,6 +20,7 @@ class PrReviewService:
         "queued": (0, "queued"),
         "fetching_pr_files": (20, "fetching_pr_files"),
         "building_prompt": (40, "building_prompt"),
+        "discovering_mcp": (50, "discovering_mcp"),
         "running_ai_review": (60, "running_ai_review"),
         "posting_github_comment": (80, "posting_github_comment"),
         "completed": (100, "completed"),
@@ -120,8 +121,22 @@ class PrReviewService:
                 raise GitHubClientError("No patch data available for changed files")
 
             await self._set_step(review_id, "building_prompt")
+            await self._set_step(review_id, "discovering_mcp")
+            review_record = await self.store.get(review_id)
+            user_id = (review_record or {}).get("user_id")
+            from app.services.mcp_enrichment_service import mcp_enrichment_service
+
+            enriched = await mcp_enrichment_service.enrich(
+                {},
+                user_id,
+                agent_type="pr_reviewer",
+            )
+            mcp_context = enriched.get("mcp_enrichment") or None
+            if mcp_context:
+                await self.store.update_mcp_context(review_id, mcp_context)
+
             await self._set_step(review_id, "running_ai_review")
-            analysis = await self.analyzer.analyze(pr, usable_files)
+            analysis = await self.analyzer.analyze(pr, usable_files, mcp_context=mcp_context)
             review_markdown = format_review_markdown(analysis)
 
             await self._set_step(review_id, "posting_github_comment")

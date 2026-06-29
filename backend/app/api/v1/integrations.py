@@ -5,9 +5,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db_session
+from app.integrations.mcp.client import McpClientError
 from app.integrations.pagerduty.client import PagerDutyDeliveryError
 from app.integrations.slack.client import SlackDeliveryError
 from app.models.auth import UserResponse
+from app.models.mcp_integration import (
+    McpAskRequest,
+    McpAskResponse,
+    McpIntegrationResponse,
+    McpIntegrationSettings,
+    McpTestResponse,
+    McpToolCallRecord,
+)
 from app.models.pagerduty_integration import (
     PagerDutyIntegrationResponse,
     PagerDutyIntegrationSettings,
@@ -20,12 +29,15 @@ from app.models.slack_integration import (
 )
 from app.notifications.pagerduty_notification_service import pagerduty_notification_service
 from app.notifications.slack_notification_service import slack_notification_service
+from app.services.mcp_settings_service import McpSettingsService
+from app.services.mcp_ask_service import mcp_ask_service
 from app.services.pagerduty_settings_service import PagerDutySettingsService
 from app.services.slack_settings_service import SlackSettingsService
 
 router = APIRouter(tags=["integrations"])
 slack_settings_service = SlackSettingsService()
 pagerduty_settings_service = PagerDutySettingsService()
+mcp_settings_service = McpSettingsService()
 
 
 @router.get("/integrations/slack", response_model=SlackIntegrationResponse)
@@ -123,4 +135,105 @@ async def test_pagerduty_integration(
     return PagerDutyTestResponse(
         status="sent",
         message="Test incident delivered to your configured PagerDuty service.",
+    )
+
+
+@router.get("/integrations/mcp", response_model=McpIntegrationResponse)
+async def get_mcp_integration(
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpIntegrationResponse:
+    return await mcp_settings_service.get_settings(session, current_user.id)
+
+
+@router.put("/integrations/mcp", response_model=McpIntegrationResponse)
+async def update_mcp_integration(
+    payload: McpIntegrationSettings,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpIntegrationResponse:
+    if payload.enabled:
+        existing = await mcp_settings_service.get_settings(session, current_user.id)
+        has_url = bool(payload.server_url.strip())
+        has_user_url = bool(existing.server_url.strip())
+        if not has_url and not has_user_url and not existing.instance_server_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="MCP server URL is required when the integration is enabled.",
+            )
+    return await mcp_settings_service.upsert_settings(session, current_user.id, payload)
+
+
+@router.post("/integrations/mcp/test", response_model=McpTestResponse)
+async def test_mcp_integration(
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpTestResponse:
+    from app.integrations.mcp.client import McpClient
+
+    server_url, api_key = await mcp_settings_service.resolve_connection(
+        session,
+        current_user.id,
+        agent_type="kubernetes",
+        require_enabled=False,
+    )
+    if not server_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Configure an MCP server URL before testing the connection.",
+        )
+
+    try:
+        probe = await McpClient().probe_server(server_url, api_key)
+    except McpClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"MCP connection failed: {exc}",
+        ) from exc
+
+    tool_names = [tool["name"] for tool in probe["tools"][:10]]
+    return McpTestResponse(
+        status="connected",
+        message=(
+            f"Connected to MCP server. Found {probe['tool_count']} tools "
+            f"and {probe['resource_count']} resources."
+        ),
+        tool_count=probe["tool_count"],
+        resource_count=probe["resource_count"],
+        tools=tool_names,
+    )
+
+
+@router.post("/integrations/mcp/ask", response_model=McpAskResponse)
+async def ask_mcp_integration(
+    payload: McpAskRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpAskResponse:
+    settings = await mcp_settings_service.get_settings(session, current_user.id)
+    if not settings.enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="Enable MCP in settings before asking questions.",
+        )
+
+    try:
+        result = await mcp_ask_service.ask(payload.question, current_user.id)
+    except McpClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"MCP question failed: {exc}",
+        ) from exc
+
+    return McpAskResponse(
+        answer=result["answer"],
+        tools_used=[
+            McpToolCallRecord.model_validate(record) for record in result["tools_used"]
+        ],
     )

@@ -32,10 +32,11 @@ export const PLATFORM_INTEGRATIONS: PlatformIntegration = {
   id: "integrations",
   name: "Integrations",
   href: "/integrations/slack",
-  description: "Connect DevOps Open Agent with external tools like Slack and PagerDuty.",
+  description: "Connect DevOps Open Agent with external tools like Slack, PagerDuty, and MCP servers.",
   nav: [
     { href: "/integrations/slack", label: "Slack" },
     { href: "/integrations/pagerduty", label: "PagerDuty" },
+    { href: "/integrations/mcp", label: "MCP" },
   ],
   matchesPath: (pathname) => pathname.startsWith("/integrations"),
 };

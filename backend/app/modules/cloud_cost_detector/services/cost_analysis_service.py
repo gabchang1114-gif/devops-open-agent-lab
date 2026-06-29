@@ -188,6 +188,7 @@ class CloudCostAnalysisService:
         region: str,
         include_ai: bool = True,
         on_progress: ProgressCallback | None = None,
+        user_id: str | None = None,
     ) -> CloudCostInvestigationResponse:
         try:
             assessment = await self._discover_and_assess(account_id, region, on_progress)
@@ -197,7 +198,16 @@ class CloudCostAnalysisService:
 
             if include_ai:
                 await self._report_progress(on_progress, "AI Cost Analysis")
-                analysis = await self.cost_analyzer.analyze(assessment.investigation_payload)
+                diagnosis_payload = assessment.investigation_payload.model_dump(mode="json")
+                if user_id:
+                    from app.services.mcp_enrichment_service import mcp_enrichment_service
+
+                    diagnosis_payload = await mcp_enrichment_service.enrich(
+                        diagnosis_payload,
+                        user_id,
+                        agent_type="cloud_cost",
+                    )
+                analysis = await self.cost_analyzer.analyze(diagnosis_payload)
                 analysis = enrich_analysis_with_savings(analysis, savings)
                 if analysis.llm_error:
                     status = "partial_success"

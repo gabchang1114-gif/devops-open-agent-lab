@@ -39,6 +39,16 @@ export interface PrReviewHistoryResponse {
   reviews: PrReviewHistoryItem[];
 }
 
+export interface PrReviewMcpEnrichment {
+  connected?: boolean;
+  server_url?: string;
+  tool_count?: number;
+  resource_count?: number;
+  tools?: Array<{ name: string; description?: string }>;
+  resources?: Array<{ name: string; uri: string; description?: string }>;
+  error?: string;
+}
+
 export interface PrReviewDetail {
   id: string;
   owner: string;
@@ -57,6 +67,7 @@ export interface PrReviewDetail {
   progress_percentage: number;
   review_markdown?: string | null;
   review?: PrReviewAnalysis | null;
+  mcp_enrichment?: PrReviewMcpEnrichment | null;
   github_comment_url?: string | null;
   error?: string | null;
   created_at: string;

@@ -11,6 +11,23 @@ import {
 } from "@/hooks/usePrReviewer";
 import { PRReviewerSetupGuide } from "@/modules/pr_reviewer/PRReviewerSetupGuide";
 
+const REVIEW_STEP_LABELS: Record<string, string> = {
+  queued: "Queued",
+  fetching_pr_files: "Fetching PR files",
+  building_prompt: "Building review prompt",
+  discovering_mcp: "Discovering MCP tools",
+  running_ai_review: "Running AI review",
+  posting_github_comment: "Posting GitHub comment",
+  completed: "Completed",
+};
+
+function formatReviewStep(step: string | null | undefined): string {
+  if (!step) {
+    return "";
+  }
+  return REVIEW_STEP_LABELS[step] ?? step.replaceAll("_", " ");
+}
+
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail;
@@ -115,7 +132,9 @@ export function PRReviewerPage() {
               <div className="mt-4 rounded-lg border border-brand-500/20 bg-brand-500/10 px-4 py-3 text-sm text-brand-100">
                 Review <span className="font-mono">{activeReviewId}</span> is{" "}
                 <span className="capitalize">{statusQuery.data.status}</span>
-                {statusQuery.data.current_step ? ` (${statusQuery.data.current_step})` : ""}.
+                {statusQuery.data.current_step
+                  ? ` (${formatReviewStep(statusQuery.data.current_step)})`
+                  : ""}.
                 {" "}
                 <Link
                   href={`/pr-reviewer/reviews/${activeReviewId}?from=${encodeURIComponent("/pr-reviewer")}`}

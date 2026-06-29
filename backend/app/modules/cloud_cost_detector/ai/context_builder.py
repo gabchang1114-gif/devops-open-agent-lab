@@ -46,4 +46,5 @@ class CloudCostContextBuilder:
             "auto_scaling_groups": resources.get("auto_scaling_groups") or [],
             "cost_savings": payload.get("cost_savings") or {},
             "notes": payload.get("notes") or [],
+            "mcp_enrichment": payload.get("mcp_enrichment", {}),
         }

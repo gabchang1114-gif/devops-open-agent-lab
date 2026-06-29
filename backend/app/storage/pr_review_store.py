@@ -69,6 +69,9 @@ class PrReviewStore:
         if "user_id" not in columns:
             connection.execute("ALTER TABLE pr_reviews ADD COLUMN user_id TEXT")
             connection.commit()
+        if "mcp_context_json" not in columns:
+            connection.execute("ALTER TABLE pr_reviews ADD COLUMN mcp_context_json TEXT")
+            connection.commit()
 
     @staticmethod
     def utc_now() -> str:
@@ -230,6 +233,21 @@ class PrReviewStore:
             )
             connection.commit()
 
+    async def update_mcp_context(self, review_id: str, mcp_context: dict[str, Any]) -> None:
+        await asyncio.to_thread(self._update_mcp_context_sync, review_id, mcp_context)
+
+    def _update_mcp_context_sync(self, review_id: str, mcp_context: dict[str, Any]) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE pr_reviews
+                SET mcp_context_json = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (json.dumps(mcp_context), self.utc_now(), review_id),
+            )
+            connection.commit()
+
     async def fail(self, review_id: str, error: str) -> None:
         await asyncio.to_thread(self._fail_sync, review_id, error)
 
@@ -259,6 +277,8 @@ class PrReviewStore:
             data = dict(row)
             if data.get("review_json"):
                 data["review"] = json.loads(data["review_json"])
+            if data.get("mcp_context_json"):
+                data["mcp_enrichment"] = json.loads(data["mcp_context_json"])
             return data
 
     async def list_history(self, limit: int = 50) -> list[dict[str, Any]]:

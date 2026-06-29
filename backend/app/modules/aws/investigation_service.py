@@ -150,6 +150,7 @@ class AWSInvestigationService:
         self,
         request: AwsInvestigationRequest,
         on_progress: ProgressCallback | None = None,
+        user_id: str | None = None,
     ) -> AwsInvestigationResponse:
         notes: list[str] = []
         try:
@@ -305,7 +306,16 @@ class AWSInvestigationService:
             if request.include_ai:
                 await self._report_progress(on_progress, "AI Diagnosis")
                 logger.info("Running AWS AI diagnosis | account={} region={}", request.account_id, request.region)
-                diagnosis = await self.root_cause_analyzer.analyze(response)
+                diagnosis_payload = response.model_dump(mode="json")
+                if user_id:
+                    from app.services.mcp_enrichment_service import mcp_enrichment_service
+
+                    diagnosis_payload = await mcp_enrichment_service.enrich(
+                        diagnosis_payload,
+                        user_id,
+                        agent_type="aws",
+                    )
+                diagnosis = await self.root_cause_analyzer.analyze(diagnosis_payload)
                 response.diagnosis = diagnosis
                 if diagnosis.llm_error:
                     response.status = "partial_success"

@@ -122,6 +122,7 @@ class PrReviewDetailResponse(BaseModel):
     progress_percentage: int = 0
     review_markdown: str | None = None
     review: PrReviewAnalysis | None = None
+    mcp_enrichment: dict | None = None
     github_comment_url: str | None = None
     error: str | None = None
     created_at: str

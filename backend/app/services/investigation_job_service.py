@@ -13,6 +13,7 @@ from app.modules.cloud_cost_detector.services.investigation_service import Cloud
 from app.modules.cloud_cost_detector.models.schemas import CloudCostInvestigationResponse
 from app.notifications.pagerduty_notification_service import pagerduty_notification_service
 from app.notifications.slack_notification_service import slack_notification_service
+from app.services.mcp_enrichment_service import mcp_enrichment_service
 from app.services.diagnosis_service import DiagnosisService
 from app.services.investigation_service import InvestigationService
 from app.storage.base import BaseInvestigationStore
@@ -97,7 +98,15 @@ class InvestigationJobService:
                     current_step="AI Diagnosis",
                     progress_percentage=95,
                 )
-                diagnosis = await self.diagnosis_service.diagnose(response)
+                diagnosis_payload = response.model_dump(mode="json")
+                record = await self.store.get_status(investigation_id)
+                user_id = record.get("user_id") if record else None
+                diagnosis_payload = await mcp_enrichment_service.enrich(
+                    diagnosis_payload,
+                    user_id,
+                    agent_type="kubernetes",
+                )
+                diagnosis = await self.diagnosis_service.diagnose(diagnosis_payload)
                 response.diagnosis = diagnosis
                 if diagnosis.llm_error:
                     response.status = "partial_success"
@@ -164,6 +173,7 @@ class InvestigationJobService:
             response = await self.aws_investigation_service.investigate(
                 aws_request,
                 on_progress=on_progress,
+                user_id=(await self.store.get_status(investigation_id) or {}).get("user_id"),
             )
 
             if response.status == "error":
@@ -215,6 +225,7 @@ class InvestigationJobService:
                 region=request.region or "",
                 include_ai=request.include_ai,
                 on_progress=on_progress,
+                user_id=(await self.store.get_status(investigation_id) or {}).get("user_id"),
             )
 
             if response.status == "error":

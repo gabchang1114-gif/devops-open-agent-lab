@@ -33,8 +33,11 @@ class PrReviewPromptBuilder:
         self,
         pr: PrWebhookPayload,
         files: list[PrFileInfo],
+        mcp_context: dict | None = None,
     ) -> list[dict[str, str]]:
         context = self._build_context(pr, files)
+        if mcp_context:
+            context["mcp_enrichment"] = mcp_context
         system_prompt = (
             "You are a Senior DevOps Engineer, Platform Engineer, and SRE.\n"
             "Review this pull request for DevOps best practices, reliability, security, "
@@ -51,8 +54,13 @@ class PrReviewPromptBuilder:
             f"File summaries:\n{json.dumps(context['file_summaries'], indent=2)}\n\n"
             f"Classified file types present:\n{json.dumps(context['categories'], indent=2)}\n\n"
             f"Diff patches:\n{json.dumps(context['patches'], indent=2)}\n\n"
-            f"Output JSON schema:\n{json.dumps(OUTPUT_SCHEMA, indent=2)}"
         )
+        if context.get("mcp_enrichment"):
+            user_prompt += (
+                f"MCP server context (external tools available during review):\n"
+                f"{json.dumps(context['mcp_enrichment'], indent=2)}\n\n"
+            )
+        user_prompt += f"Output JSON schema:\n{json.dumps(OUTPUT_SCHEMA, indent=2)}"
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

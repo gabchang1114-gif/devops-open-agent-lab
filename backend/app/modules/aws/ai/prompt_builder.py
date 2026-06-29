@@ -232,6 +232,7 @@ class AwsPromptBuilder:
             ("Load Balancer Findings", context.get("load_balancer_findings", {})),
             ("Auto Scaling Findings", context.get("auto_scaling_findings", {})),
             ("AWS Config Findings", context.get("config_findings", {})),
+            ("MCP Server Context", context.get("mcp_enrichment", {})),
             (
                 "Account & Resource Counts",
                 {

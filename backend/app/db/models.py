@@ -90,6 +90,29 @@ class PagerDutyNotificationCooldown(Base):
     last_sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserMcpIntegration(Base):
+    __tablename__ = "user_mcp_integrations"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    server_url: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    api_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    use_kubernetes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    use_aws: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    use_cloud_cost: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    use_pr_reviewer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class InvestigationSchedule(Base):
     __tablename__ = "investigation_schedules"
 

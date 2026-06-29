@@ -22,10 +22,12 @@ class CloudCostInvestigationService:
         region: str,
         include_ai: bool = True,
         on_progress: ProgressCallback | None = None,
+        user_id: str | None = None,
     ) -> CloudCostInvestigationResponse:
         return await self.analysis_service.investigate(
             account_id=account_id,
             region=region,
             include_ai=include_ai,
             on_progress=on_progress,
+            user_id=user_id,
         )
