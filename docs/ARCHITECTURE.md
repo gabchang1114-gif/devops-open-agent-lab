@@ -121,7 +121,7 @@ flowchart LR
 **LLM providers** (configured in `backend/.env`):
 
 ```env
-LLM_PROVIDER=openai|anthropic|ollama|openrouter
+LLM_PROVIDER=openai|anthropic|ollama|openrouter|gemini
 ```
 
 Implementation: `backend/app/ai/llm_factory.py`

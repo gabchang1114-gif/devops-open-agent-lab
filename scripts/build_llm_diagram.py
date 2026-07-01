@@ -15,13 +15,14 @@ OUT_PDF = ROOT / "img" / "llm-provider-diagram.pdf"
 OUT_SVG = ROOT / "img" / "llm-provider-diagram.svg"
 TMP_PDF = ROOT / "img" / ".llm-provider-diagram-tmp.pdf"
 
-W, H = 1200, 640
+W, H = 1200, 700
 
 PROVIDERS = [
     ("Ollama", "Local / self-hosted LLM", "O", (0.13, 0.83, 0.93)),
     ("OpenAI", "GPT-4o / GPT-4o-mini", "AI", (0.06, 0.73, 0.51)),
     ("Anthropic", "Claude Sonnet / Opus", "A", (0.96, 0.62, 0.04)),
     ("OpenRouter", "100+ models · one API key", "OR", (0.55, 0.36, 0.96)),
+    ("Google Gemini", "Gemini 2.0 Flash / Pro", "G", (0.26, 0.52, 0.96)),
 ]
 
 
@@ -85,7 +86,7 @@ def draw_diagram(pdf_path: Path) -> None:
     c.drawCentredString(llm_x + llm_w / 2, llm_y + 36, "Context · Prompts · RCA")
 
     hub_x = 760
-    branch_ys = [500, 395, 290, 185]
+    branch_ys = [560, 470, 380, 290, 200]
     card_h = 100
 
     c.setStrokeColorRGB(0.65, 0.55, 0.98)
@@ -131,7 +132,7 @@ def draw_diagram(pdf_path: Path) -> None:
 
 
 def write_svg() -> None:
-    branch_ys = [500, 395, 290, 185]
+    branch_ys = [560, 470, 380, 290, 200]
     card_h = 100
     provider_blocks = []
     for index, (name, subtitle, initial, color) in enumerate(PROVIDERS):
@@ -152,7 +153,7 @@ def write_svg() -> None:
         )
 
     OUT_SVG.write_text(
-        f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="640" viewBox="0 0 1200 640">
+        f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="700" viewBox="0 0 1200 700">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0B1220"/><stop offset="100%" stop-color="#111827"/>
@@ -161,7 +162,7 @@ def write_svg() -> None:
     <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#38BDF8"/></marker>
     <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#A78BFA"/></marker>
   </defs>
-  <rect width="1200" height="640" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="700" rx="24" fill="url(#bg)"/>
   <text x="600" y="42" text-anchor="middle" fill="#F8FAFC" font-family="system-ui,sans-serif" font-size="24" font-weight="700">DevOps Open Agent — LLM Provider Architecture</text>
   <text x="600" y="68" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="14">One platform · Shared LLM layer · Your choice of provider</text>
 
@@ -181,10 +182,10 @@ def write_svg() -> None:
   </g>
 
   <line x1="670" y1="280" x2="760" y2="280" stroke="#A78BFA" stroke-width="3"/>
-  <line x1="760" y1="185" x2="760" y2="500" stroke="#A78BFA" stroke-width="3"/>
+  <line x1="760" y1="200" x2="760" y2="560" stroke="#A78BFA" stroke-width="3"/>
 {chr(10).join(provider_blocks)}
 
-  <text x="600" y="618" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · All four agent modules use the same LLM layer</text>
+  <text x="600" y="678" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · All four agent modules use the same LLM layer</text>
 </svg>""",
         encoding="utf-8",
     )

@@ -2,12 +2,13 @@
 
 from app.ai.providers.anthropic_provider import AnthropicProvider
 from app.ai.providers.base import BaseLLMProvider
+from app.ai.providers.gemini_provider import GeminiProvider
 from app.ai.providers.ollama_provider import OllamaProvider
 from app.ai.providers.openai_provider import OpenAIProvider
 from app.ai.providers.openrouter_provider import OpenRouterProvider
 from app.core.config import Settings, get_settings
 
-ALLOWED_PROVIDERS = {"openai", "anthropic", "ollama", "openrouter"}
+ALLOWED_PROVIDERS = {"openai", "anthropic", "ollama", "openrouter", "gemini"}
 
 
 class LLMProviderFactory:
@@ -18,6 +19,7 @@ class LLMProviderFactory:
         "anthropic": AnthropicProvider,
         "ollama": OllamaProvider,
         "openrouter": OpenRouterProvider,
+        "gemini": GeminiProvider,
     }
 
     @classmethod
@@ -60,6 +62,12 @@ class LLMProviderFactory:
             return provider_cls(
                 api_key=settings.openrouter_api_key,
                 model=settings.openrouter_model,
+                timeout=timeout,
+            )
+        if name == "gemini":
+            return provider_cls(
+                api_key=settings.gemini_api_key,
+                model=settings.gemini_model,
                 timeout=timeout,
             )
 

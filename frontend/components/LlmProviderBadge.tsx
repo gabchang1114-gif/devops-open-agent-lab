@@ -10,6 +10,7 @@ export function formatLlmProviderLabel(provider: string | null | undefined): str
     ollama: "Ollama",
     anthropic: "Anthropic",
     openrouter: "OpenRouter",
+    gemini: "Google Gemini",
   };
 
   return labels[provider.toLowerCase()] ?? provider;
@@ -25,6 +26,8 @@ function providerStyles(provider: string): string {
       return "border-orange-500/25 bg-orange-500/10 text-orange-200";
     case "openrouter":
       return "border-sky-500/25 bg-sky-500/10 text-sky-200";
+    case "gemini":
+      return "border-blue-500/25 bg-blue-500/10 text-blue-200";
     default:
       return "border-slate-500/25 bg-slate-500/10 text-slate-200";
   }

@@ -53,6 +53,8 @@ class ReadinessService:
             return bool(self.settings.anthropic_api_key and self.settings.anthropic_model)
         if provider_name == "openrouter":
             return bool(self.settings.openrouter_api_key and self.settings.openrouter_model)
+        if provider_name == "gemini":
+            return bool(self.settings.gemini_api_key and self.settings.gemini_model)
 
         try:
             LLMProviderFactory.create(settings=self.settings)

@@ -43,14 +43,16 @@ The demo covers:
 - **Frontend:** Next.js 15, TypeScript, Tailwind CSS, TanStack Query
 - **Runtime:** Docker Compose
 
-Supported LLM providers: OpenAI, Anthropic, OpenRouter, Ollama — see [LLM Supported](#llm-supported).
+Supported LLM providers: OpenAI, Anthropic, OpenRouter, Google Gemini, Ollama — see [LLM Supported](#llm-supported).
 
 ## LLM Supported
 
 All four agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer) use a **shared LLM layer**.  
 Configure one provider in `backend/.env` — every investigation, diagnosis, and PR review uses it.
 
-![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, Anthropic, and OpenRouter](img/llm-provider-diagram.png)
+![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, Anthropic, OpenRouter, and Google Gemini](img/llm-provider-diagram.png)
+
+Regenerate the diagram: `python3 scripts/build_llm_diagram.py`
 
 | Provider | `LLM_PROVIDER` | Configure in `backend/.env` |
 |----------|--------------|-------------------------------|
@@ -58,6 +60,7 @@ Configure one provider in `backend/.env` — every investigation, diagnosis, and
 | **OpenAI** | `openai` | `OPENAI_API_KEY`, `OPENAI_MODEL` |
 | **Anthropic** | `anthropic` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
 | **OpenRouter** | `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| **Google Gemini** | `gemini` | `GEMINI_API_KEY`, `GEMINI_MODEL` |
 
 Example (`backend/.env`):
 
@@ -71,9 +74,14 @@ ANTHROPIC_MODEL=claude-sonnet-4-6
 # LLM_PROVIDER=openrouter
 # OPENROUTER_API_KEY=sk-or-...
 # OPENROUTER_MODEL=openai/gpt-4o-mini
+
+# Google Gemini
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=...
+# GEMINI_MODEL=gemini-2.0-flash
 ```
 
-After changing provider settings, restart the backend:
+After changing provider settings, recreate the backend so `backend/.env` is reloaded:
 
 ```bash
 docker compose up -d --force-recreate backend
@@ -739,6 +747,11 @@ OLLAMA_MODEL=gemma4:e4b
 # LLM_PROVIDER=openrouter
 # OPENROUTER_API_KEY=sk-or-...
 # OPENROUTER_MODEL=openai/gpt-4o-mini
+
+# Google Gemini (optional)
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=
+# GEMINI_MODEL=gemini-2.0-flash
 
 GITHUB_TOKEN=
 GITHUB_WEBHOOK_SECRET=

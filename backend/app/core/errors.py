@@ -68,7 +68,7 @@ def sanitize_error_message(raw_error: str | None) -> str:
             "Please verify the kubeconfig format and current context."
         )
 
-    if "openai_api_key" in lowered or "anthropic_api_key" in lowered or "openrouter_api_key" in lowered:
+    if "openai_api_key" in lowered or "anthropic_api_key" in lowered or "openrouter_api_key" in lowered or "gemini_api_key" in lowered:
         return (
             "The configured LLM provider is unavailable.\n\n"
             "Please verify:\n"
