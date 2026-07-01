@@ -69,5 +69,5 @@
     <text x="990" y="190" text-anchor="middle" fill="#94A3B8" font-family="system-ui,sans-serif" font-size="12">Gemini 2.0 Flash / Pro</text>
   </g>
 
-  <text x="600" y="678" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · All four agent modules use the same LLM layer</text>
+  <text x="600" y="678" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · Five LLM providers · All agent modules share the same layer</text>
 </svg>

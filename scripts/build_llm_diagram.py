@@ -125,7 +125,7 @@ def draw_diagram(pdf_path: Path) -> None:
     c.drawCentredString(
         W / 2,
         18,
-        "Configure provider in backend/.env · All four agent modules use the same LLM layer",
+        "Configure provider in backend/.env · Five LLM providers · All agent modules share the same layer",
     )
 
     c.save()
@@ -185,7 +185,7 @@ def write_svg() -> None:
   <line x1="760" y1="200" x2="760" y2="560" stroke="#A78BFA" stroke-width="3"/>
 {chr(10).join(provider_blocks)}
 
-  <text x="600" y="678" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · All four agent modules use the same LLM layer</text>
+  <text x="600" y="678" text-anchor="middle" fill="#64748B" font-family="system-ui,sans-serif" font-size="12">Configure provider in backend/.env · Five LLM providers · All agent modules share the same layer</text>
 </svg>""",
         encoding="utf-8",
     )

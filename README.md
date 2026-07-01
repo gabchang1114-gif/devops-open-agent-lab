@@ -50,7 +50,7 @@ Supported LLM providers: OpenAI, Anthropic, OpenRouter, Google Gemini, Ollama �
 All four agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer) use a **shared LLM layer**.  
 Configure one provider in `backend/.env` — every investigation, diagnosis, and PR review uses it.
 
-![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, Anthropic, OpenRouter, and Google Gemini](img/llm-provider-diagram.png)
+![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, Anthropic, OpenRouter, and Google Gemini](img/llm-provider-diagram.png?v=gemini)
 
 Regenerate the diagram: `python3 scripts/build_llm_diagram.py`
 
