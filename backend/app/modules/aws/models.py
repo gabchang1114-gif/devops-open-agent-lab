@@ -38,6 +38,10 @@ class AwsInvestigationRequest(BaseModel):
         default=True,
         description="Run LLM root cause analysis after evidence collection",
     )
+    include_rag: bool = Field(
+        default=False,
+        description="Augment AI analysis with similar past investigations from Qdrant (RAG)",
+    )
 
 
 class AwsAccountInfo(BaseModel):

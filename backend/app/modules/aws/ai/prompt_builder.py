@@ -196,6 +196,20 @@ class AwsPromptBuilder:
                 ]
             )
 
+        rag_context = context.get("rag_context") or {}
+        if rag_context.get("matches"):
+            sections.extend(
+                [
+                    "## Similar Past Investigations (RAG)",
+                    json.dumps(rag_context, indent=2),
+                    "",
+                    "Use these prior investigations as supporting context — note recurring root "
+                    "causes and remediations that worked before, but ground the final diagnosis "
+                    "in the current evidence.",
+                    "",
+                ]
+            )
+
         if focus.get("query"):
             sections.extend(
                 [

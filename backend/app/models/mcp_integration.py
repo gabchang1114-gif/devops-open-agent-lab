@@ -18,6 +18,36 @@ class McpIntegrationSettings(BaseModel):
     use_pr_reviewer: bool = True
 
 
+class McpWhitelistCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    server_url: str = Field(min_length=1, max_length=512)
+
+
+class McpBlacklistCreate(BaseModel):
+    server_url: str = Field(min_length=1, max_length=512)
+
+
+class McpWhitelistEntry(BaseModel):
+    id: str
+    name: str
+    server_url: str
+
+
+class McpBlacklistEntry(BaseModel):
+    id: str
+    server_url: str
+
+
+class McpOfficialServer(BaseModel):
+    id: str
+    name: str
+    server_url: str
+    description: str
+    docs_url: str
+    auth_hint: str
+    category: str
+
+
 class McpIntegrationResponse(BaseModel):
     enabled: bool
     server_url: str
@@ -28,6 +58,11 @@ class McpIntegrationResponse(BaseModel):
     use_cloud_cost: bool
     use_pr_reviewer: bool
     instance_server_configured: bool
+    instance_url_restrictions_enabled: bool
+    instance_allowed_urls: list[str] = Field(default_factory=list)
+    official_servers: list[McpOfficialServer] = Field(default_factory=list)
+    whitelist: list[McpWhitelistEntry] = Field(default_factory=list)
+    blacklist: list[McpBlacklistEntry] = Field(default_factory=list)
 
 
 class McpTestResponse(BaseModel):

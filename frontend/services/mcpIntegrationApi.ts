@@ -2,9 +2,13 @@ import { apiClient } from "@/services/api";
 import type {
   McpAskRequest,
   McpAskResponse,
+  McpBlacklistCreate,
+  McpBlacklistEntry,
   McpIntegrationResponse,
   McpIntegrationSettings,
   McpTestResponse,
+  McpWhitelistCreate,
+  McpWhitelistEntry,
 } from "@/types/mcpIntegration";
 
 export const mcpIntegrationApi = {
@@ -41,5 +45,33 @@ export const mcpIntegrationApi = {
       { timeout: 180_000 },
     );
     return response.data;
+  },
+
+  async addWhitelistEntry(
+    payload: McpWhitelistCreate,
+  ): Promise<McpWhitelistEntry> {
+    const response = await apiClient.post<McpWhitelistEntry>(
+      "/api/v1/integrations/mcp/whitelist",
+      payload,
+    );
+    return response.data;
+  },
+
+  async removeWhitelistEntry(entryId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/integrations/mcp/whitelist/${entryId}`);
+  },
+
+  async addBlacklistEntry(
+    payload: McpBlacklistCreate,
+  ): Promise<McpBlacklistEntry> {
+    const response = await apiClient.post<McpBlacklistEntry>(
+      "/api/v1/integrations/mcp/blacklist",
+      payload,
+    );
+    return response.data;
+  },
+
+  async removeBlacklistEntry(entryId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/integrations/mcp/blacklist/${entryId}`);
   },
 };

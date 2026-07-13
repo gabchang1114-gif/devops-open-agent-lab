@@ -97,9 +97,42 @@ class Settings(BaseSettings):
         description="Minimum minutes between Teams alerts per user (reduces alert fatigue)",
     )
 
+    # Qdrant vector database / RAG (optional instance-level defaults)
+    qdrant_instance_url: str = Field(
+        default="",
+        description="Instance-level Qdrant endpoint used as a fallback for all users.",
+    )
+    qdrant_instance_api_key: str = ""
+    qdrant_collection: str = Field(
+        default="devops_open_agent_investigations",
+        description="Qdrant collection where investigation vectors are stored.",
+    )
+    rag_embedding_provider: str = Field(
+        default="",
+        description=(
+            "Embedding provider for RAG: openai, gemini, or ollama. "
+            "Defaults to the configured LLM provider when it supports embeddings."
+        ),
+    )
+    rag_embedding_model: str = Field(
+        default="",
+        description="Embedding model override. Defaults to a sensible model per provider.",
+    )
+    rag_max_results: int = Field(
+        default=4,
+        description="Maximum number of past investigations retrieved for RAG context.",
+    )
+
     # MCP integrations (optional instance-level defaults)
     mcp_instance_server_url: str = ""
     mcp_instance_api_key: str = ""
+    mcp_allowed_server_urls: str = Field(
+        default="",
+        description=(
+            "Comma-separated MCP server URLs or host patterns allowed for all users. "
+            "When set, only matching URLs can be saved or connected."
+        ),
+    )
 
     public_app_url: str = Field(
         default="http://localhost:3000",

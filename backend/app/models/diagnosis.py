@@ -29,6 +29,10 @@ class InvestigationRequest(BaseModel):
     resource_name: str | None = None
     query: str | None = None
     include_ai: bool = False
+    include_rag: bool = Field(
+        default=False,
+        description="Augment AI analysis with similar past investigations from Qdrant (RAG)",
+    )
     agent_type: str = Field(
         default="kubernetes",
         description="Troubleshooting agent type, e.g. kubernetes or aws",

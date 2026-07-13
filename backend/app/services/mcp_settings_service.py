@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.db.models import UserMcpIntegration
+from app.integrations.mcp.url_policy import McpUrlPolicyError, validate_mcp_url
+from app.integrations.mcp.official_servers import list_official_mcp_servers
 from app.models.mcp_integration import McpIntegrationResponse, McpIntegrationSettings
+from app.services.mcp_access_service import McpAccessService
 
 
 def mask_api_key(api_key: str | None) -> str | None:
@@ -24,8 +27,13 @@ def mask_api_key(api_key: str | None) -> str | None:
 class McpSettingsService:
     """CRUD for user MCP server preferences."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        access_service: McpAccessService | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
+        self.access_service = access_service or McpAccessService(self.settings)
 
     async def get_settings(
         self,
@@ -34,6 +42,9 @@ class McpSettingsService:
     ) -> McpIntegrationResponse:
         row = await self._get_row(session, user_id)
         api_key = row.api_key if row else None
+        whitelist = await self.access_service.list_whitelist(session, user_id)
+        blacklist = await self.access_service.list_blacklist(session, user_id)
+        instance_allowed = self.access_service.instance_allowed_urls
         return McpIntegrationResponse(
             enabled=bool(row.enabled) if row else False,
             server_url=(row.server_url or "") if row else "",
@@ -44,6 +55,11 @@ class McpSettingsService:
             use_cloud_cost=row.use_cloud_cost if row else True,
             use_pr_reviewer=row.use_pr_reviewer if row else True,
             instance_server_configured=bool(self.settings.mcp_instance_server_url.strip()),
+            instance_url_restrictions_enabled=self.access_service.instance_url_restrictions_enabled,
+            instance_allowed_urls=instance_allowed,
+            official_servers=list_official_mcp_servers(instance_allowed),
+            whitelist=whitelist,
+            blacklist=blacklist,
         )
 
     async def upsert_settings(
@@ -57,8 +73,16 @@ class McpSettingsService:
             row = UserMcpIntegration(user_id=user_id)
             session.add(row)
 
+        server_url = payload.server_url.strip()
+        if server_url:
+            server_url = await self.access_service.validate_active_url(
+                session,
+                user_id,
+                server_url,
+            )
+
         row.enabled = payload.enabled
-        row.server_url = payload.server_url.strip()
+        row.server_url = server_url
         row.use_kubernetes = payload.use_kubernetes
         row.use_aws = payload.use_aws
         row.use_cloud_cost = payload.use_cloud_cost
@@ -87,12 +111,31 @@ class McpSettingsService:
                     url = (row.server_url or "").strip()
                     key = (row.api_key or "").strip() or None
                     if url:
-                        return url, key
+                        validated = await self.access_service.validate_resolved_url(
+                            session,
+                            user_id,
+                            url,
+                        )
+                        return validated, key
 
         instance_url = self.settings.mcp_instance_server_url.strip()
         if instance_url:
             instance_key = self.settings.mcp_instance_api_key.strip() or None
-            return instance_url, instance_key
+            if user_id is not None:
+                validated = await self.access_service.validate_resolved_url(
+                    session,
+                    user_id,
+                    instance_url,
+                )
+            else:
+                validated = validate_mcp_url(
+                    instance_url,
+                    instance_allowed=self.access_service.instance_allowed_urls,
+                    user_whitelist=[],
+                    user_blacklist=[],
+                    require_user_whitelist=False,
+                )
+            return validated, instance_key
 
         return None, None
 

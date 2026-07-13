@@ -3,6 +3,7 @@ module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./modules/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -20,6 +21,17 @@ module.exports = {
           900: "#1e3a8a",
           950: "#172554",
         },
+        sidebar: {
+          DEFAULT: "#0f172a",
+          hover: "#1e293b",
+          active: "#1d4ed8",
+          border: "rgba(148, 163, 184, 0.12)",
+        },
+        surface: {
+          DEFAULT: "#f1f5f9",
+          card: "#ffffff",
+          muted: "#f8fafc",
+        },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
@@ -27,19 +39,24 @@ module.exports = {
       },
       boxShadow: {
         panel:
-          "0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px -6px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)",
+          "0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px -4px rgba(15, 23, 42, 0.08)",
         "panel-hover":
-          "0 0 0 1px rgba(59,130,246,0.12), 0 8px 32px -8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+          "0 4px 20px -6px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.06)",
+        card: "0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04)",
         glow: "0 0 48px -12px rgba(59,130,246,0.35)",
         "glow-sm": "0 0 24px -8px rgba(59,130,246,0.25)",
       },
       backgroundImage: {
         "grid-pattern":
-          "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          "linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)",
+        "grid-pattern-dark":
+          "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "sidebar-gradient":
+          "linear-gradient(180deg, #0f172a 0%, #111827 50%, #0f172a 100%)",
       },
       backgroundSize: {
-        grid: "48px 48px",
+        grid: "32px 32px",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

@@ -12,6 +12,7 @@ import {
   useAwsRegions,
 } from "@/hooks/useAwsInvestigation";
 import { useInvestigation } from "@/hooks/useInvestigation";
+import { useQdrantIntegration } from "@/hooks/useQdrantIntegration";
 import {
   useInvestigationResult,
   useInvestigationStatus,
@@ -47,10 +48,16 @@ export function AwsDashboard() {
   const [query, setQuery] = useState("");
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
+  const [includeRag, setIncludeRag] = useState(false);
 
   const accountsQuery = useAwsAccounts();
   const regionsQuery = useAwsRegions(accountId, region || undefined, Boolean(accountId));
   const { startInvestigation, isStarting, startError, reset } = useInvestigation();
+  const { settings: qdrantSettings } = useQdrantIntegration();
+  const ragAvailable = Boolean(
+    (qdrantSettings?.enabled && qdrantSettings?.use_aws) ||
+      qdrantSettings?.instance_url_configured,
+  );
   const statusQuery = useInvestigationStatus(activeInvestigationId);
   const status = statusQuery.data?.status;
   const isTerminal = Boolean(status && TERMINAL_STATUSES.has(status));
@@ -105,6 +112,7 @@ export function AwsDashboard() {
         issue_type: issueType,
         query: query.trim() || null,
         include_ai: true,
+        include_rag: ragAvailable && includeRag,
       });
       setActiveInvestigationId(response.investigation_id);
     } catch (error) {
@@ -154,6 +162,9 @@ export function AwsDashboard() {
           accountsError={accountsError}
           regionsLoading={regionsQuery.isLoading}
           regionsError={regionsError}
+          includeRag={includeRag}
+          onIncludeRagChange={setIncludeRag}
+          ragAvailable={ragAvailable}
         />
 
         {activeInvestigationId && statusQuery.data && (

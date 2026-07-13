@@ -1,11 +1,15 @@
 """Integration API routes."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db_session
 from app.integrations.mcp.client import McpClientError
+from app.integrations.mcp.url_policy import McpUrlPolicyError
 from app.integrations.pagerduty.client import PagerDutyDeliveryError
 from app.integrations.slack.client import SlackDeliveryError
 from app.integrations.teams.client import TeamsDeliveryError
@@ -13,15 +17,25 @@ from app.models.auth import UserResponse
 from app.models.mcp_integration import (
     McpAskRequest,
     McpAskResponse,
+    McpBlacklistCreate,
+    McpBlacklistEntry,
     McpIntegrationResponse,
     McpIntegrationSettings,
     McpTestResponse,
     McpToolCallRecord,
+    McpWhitelistCreate,
+    McpWhitelistEntry,
 )
+from app.integrations.qdrant.client import QdrantError
 from app.models.pagerduty_integration import (
     PagerDutyIntegrationResponse,
     PagerDutyIntegrationSettings,
     PagerDutyTestResponse,
+)
+from app.models.qdrant_integration import (
+    QdrantIntegrationResponse,
+    QdrantIntegrationSettings,
+    QdrantTestResponse,
 )
 from app.models.slack_integration import (
     SlackIntegrationResponse,
@@ -38,7 +52,10 @@ from app.notifications.slack_notification_service import slack_notification_serv
 from app.notifications.teams_notification_service import teams_notification_service
 from app.services.mcp_settings_service import McpSettingsService
 from app.services.mcp_ask_service import mcp_ask_service
+from app.services.mcp_access_service import McpAccessService
 from app.services.pagerduty_settings_service import PagerDutySettingsService
+from app.services.qdrant_settings_service import QdrantSettingsService
+from app.services.rag_service import rag_service
 from app.services.slack_settings_service import SlackSettingsService
 from app.services.teams_settings_service import TeamsSettingsService
 
@@ -47,6 +64,8 @@ slack_settings_service = SlackSettingsService()
 pagerduty_settings_service = PagerDutySettingsService()
 teams_settings_service = TeamsSettingsService()
 mcp_settings_service = McpSettingsService()
+mcp_access_service = McpAccessService()
+qdrant_settings_service = QdrantSettingsService()
 
 
 @router.get("/integrations/slack", response_model=SlackIntegrationResponse)
@@ -188,6 +207,59 @@ async def test_pagerduty_integration(
     )
 
 
+@router.get("/integrations/qdrant", response_model=QdrantIntegrationResponse)
+async def get_qdrant_integration(
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> QdrantIntegrationResponse:
+    return await qdrant_settings_service.get_settings(session, current_user.id)
+
+
+@router.put("/integrations/qdrant", response_model=QdrantIntegrationResponse)
+async def update_qdrant_integration(
+    payload: QdrantIntegrationSettings,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> QdrantIntegrationResponse:
+    if payload.enabled:
+        existing = await qdrant_settings_service.get_settings(session, current_user.id)
+        has_url = bool(payload.url.strip())
+        if not has_url and not existing.url.strip() and not existing.instance_url_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="Qdrant URL is required when the integration is enabled.",
+            )
+    return await qdrant_settings_service.upsert_settings(session, current_user.id, payload)
+
+
+@router.post("/integrations/qdrant/test", response_model=QdrantTestResponse)
+async def test_qdrant_integration(
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> QdrantTestResponse:
+    connection = await qdrant_settings_service.resolve_connection(
+        session,
+        current_user.id,
+        agent_type="kubernetes",
+        require_enabled=False,
+    )
+    if connection is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Configure a Qdrant URL before testing the connection.",
+        )
+    try:
+        result = await rag_service.test_connection(connection)
+    except QdrantError as exc:
+        logger.warning("Qdrant test connection failed | error={}", exc)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return QdrantTestResponse(
+        status="ok",
+        message="Connected to Qdrant and verified embeddings.",
+        **result,
+    )
+
+
 @router.get("/integrations/mcp", response_model=McpIntegrationResponse)
 async def get_mcp_integration(
     current_user: UserResponse = Depends(get_current_user),
@@ -211,7 +283,10 @@ async def update_mcp_integration(
                 status_code=400,
                 detail="MCP server URL is required when the integration is enabled.",
             )
-    return await mcp_settings_service.upsert_settings(session, current_user.id, payload)
+    try:
+        return await mcp_settings_service.upsert_settings(session, current_user.id, payload)
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/integrations/mcp/test", response_model=McpTestResponse)
@@ -236,6 +311,8 @@ async def test_mcp_integration(
     try:
         probe = await McpClient().probe_server(server_url, api_key)
     except McpClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except McpUrlPolicyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
@@ -273,6 +350,8 @@ async def ask_mcp_integration(
         result = await mcp_ask_service.ask(payload.question, current_user.id)
     except McpClientError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -287,3 +366,67 @@ async def ask_mcp_integration(
             McpToolCallRecord.model_validate(record) for record in result["tools_used"]
         ],
     )
+
+
+@router.post("/integrations/mcp/whitelist", response_model=McpWhitelistEntry)
+async def add_mcp_whitelist_entry(
+    payload: McpWhitelistCreate,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpWhitelistEntry:
+    try:
+        return await mcp_access_service.add_whitelist_entry(
+            session,
+            current_user.id,
+            payload,
+        )
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/integrations/mcp/whitelist/{entry_id}", status_code=204)
+async def delete_mcp_whitelist_entry(
+    entry_id: UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    try:
+        await mcp_access_service.remove_whitelist_entry(
+            session,
+            current_user.id,
+            entry_id,
+        )
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/integrations/mcp/blacklist", response_model=McpBlacklistEntry)
+async def add_mcp_blacklist_entry(
+    payload: McpBlacklistCreate,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> McpBlacklistEntry:
+    try:
+        return await mcp_access_service.add_blacklist_entry(
+            session,
+            current_user.id,
+            payload.server_url,
+        )
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/integrations/mcp/blacklist/{entry_id}", status_code=204)
+async def delete_mcp_blacklist_entry(
+    entry_id: UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    try:
+        await mcp_access_service.remove_blacklist_entry(
+            session,
+            current_user.id,
+            entry_id,
+        )
+    except McpUrlPolicyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -96,6 +96,7 @@ export interface InvestigationPayload {
 export interface StartInvestigationRequest {
   cluster_id?: string;
   include_ai?: boolean;
+  include_rag?: boolean;
   namespace?: string;
   agent_type?: "kubernetes" | "aws" | "cloud_cost";
   account_id?: string;

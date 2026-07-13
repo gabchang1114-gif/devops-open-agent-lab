@@ -42,6 +42,9 @@ interface AwsInvestigationFormProps {
   accountsError?: string | null;
   regionsLoading?: boolean;
   regionsError?: string | null;
+  includeRag?: boolean;
+  onIncludeRagChange?: (value: boolean) => void;
+  ragAvailable?: boolean;
 }
 
 export function AwsInvestigationForm({
@@ -64,12 +67,15 @@ export function AwsInvestigationForm({
   accountsError = null,
   regionsLoading = false,
   regionsError = null,
+  includeRag = false,
+  onIncludeRagChange,
+  ragAvailable = false,
 }: AwsInvestigationFormProps) {
   return (
     <div className="panel-accent p-6">
-      <div className="mb-5 flex items-center gap-3 border-b border-white/[0.06] pb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-500/20 bg-orange-500/10">
-          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-orange-300" aria-hidden>
+      <div className="mb-5 flex items-center gap-3 border-b border-slate-200 pb-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50">
+          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-orange-700" aria-hidden>
             <path
               d="M12 2L4 6v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V6l-8-4z"
               stroke="currentColor"
@@ -80,7 +86,7 @@ export function AwsInvestigationForm({
         </div>
         <div>
           <h2 className="panel-title">Troubleshoot AWS Infrastructure</h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Discover EC2, Lambda, S3, networking, and load balancers — then run AI analysis
           </p>
         </div>
@@ -92,7 +98,7 @@ export function AwsInvestigationForm({
           {SUPPORTED_AWS_SERVICES.map((service) => (
             <span
               key={service}
-              className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-200"
+              className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold text-orange-800"
             >
               {service}
             </span>
@@ -115,8 +121,8 @@ export function AwsInvestigationForm({
         <div className="mb-5">
           <p className="section-label">Select Region</p>
           {regionsLoading && regions.length === 0 ? (
-            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-              <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-600 border-t-slate-400" />
+            <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+              <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-orange-500" />
               Loading regions...
             </div>
           ) : (
@@ -129,10 +135,10 @@ export function AwsInvestigationForm({
                     type="button"
                     disabled={disabled || isLoading}
                     onClick={() => onRegionChange(item.region)}
-                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs transition ${
+                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-medium transition ${
                       selected
-                        ? "border-orange-500/50 bg-orange-500/15 text-orange-200"
-                        : "border-white/[0.08] bg-slate-950/40 text-slate-400 hover:border-white/[0.14] hover:text-slate-200"
+                        ? "border-orange-500 bg-orange-50 text-orange-800 ring-1 ring-orange-500/30"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
                     } ${disabled || isLoading ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     {item.region}
@@ -142,7 +148,7 @@ export function AwsInvestigationForm({
             </div>
           )}
           {regionsError && (
-            <p className="mt-2.5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            <p className="mt-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
               {regionsError}
             </p>
           )}
@@ -168,12 +174,12 @@ export function AwsInvestigationForm({
                 onClick={() => onIssueTypeChange(item.value)}
                 className={`rounded-xl border px-4 py-3 text-left transition ${
                   selected
-                    ? "border-orange-500/50 bg-orange-500/10 shadow-[0_0_0_1px_rgba(249,115,22,0.25)]"
-                    : "border-white/[0.08] bg-slate-950/40 hover:border-white/[0.14] hover:bg-slate-900/60"
+                    ? "border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500/30"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                 } ${disabled || isLoading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
               >
-                <p className="text-sm font-semibold text-white">{item.label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.description}</p>
+                <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.description}</p>
               </button>
             );
           })}
@@ -191,7 +197,7 @@ export function AwsInvestigationForm({
           disabled={disabled || isLoading}
           placeholder="e.g. I opened HTTP to the internet on a security group and want to know if it's exposed..."
           rows={3}
-          className="mt-3 w-full rounded-xl border border-white/[0.08] bg-slate-950/40 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-orange-500/40 focus:outline-none"
+          className="input-field mt-3 resize-y"
         />
       </div>
 
@@ -206,10 +212,10 @@ export function AwsInvestigationForm({
                 type="button"
                 disabled={disabled || isLoading}
                 onClick={() => onCloudwatchWindowChange(item.value)}
-                className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                   selected
-                    ? "border-brand-500/50 bg-brand-500/15 text-brand-200"
-                    : "border-white/[0.08] bg-slate-950/40 text-slate-400 hover:border-white/[0.14] hover:text-slate-200"
+                    ? "border-brand-500 bg-brand-50 text-brand-800 ring-1 ring-brand-500/30"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
                 } ${disabled || isLoading ? "cursor-not-allowed opacity-60" : ""}`}
               >
                 {item.label}
@@ -217,10 +223,31 @@ export function AwsInvestigationForm({
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-600">
           Applies to CloudWatch metrics and CloudTrail lookback
         </p>
       </div>
+
+      {ragAvailable && (
+        <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <input
+            type="checkbox"
+            checked={includeRag}
+            disabled={disabled || isLoading}
+            onChange={(event) => onIncludeRagChange?.(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+          />
+          <span>
+            <span className="block text-sm font-medium text-slate-900">
+              Include past investigations (RAG)
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-600">
+              Retrieve similar prior AWS investigations from Qdrant and factor them into the
+              AI analysis.
+            </span>
+          </span>
+        </label>
+      )}
 
       <button
         type="button"

@@ -31,8 +31,8 @@ export function AwsAccountSelector({
       <p className="section-label">Select AWS Account</p>
 
       {loading && options.length === 0 ? (
-        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-          <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-600 border-t-slate-400" />
+        <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+          <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-orange-500" />
           Discovering AWS accounts...
         </div>
       ) : (
@@ -54,8 +54,8 @@ export function AwsAccountSelector({
                 onClick={() => onAccountChange(account.account_id)}
                 className={`group relative rounded-xl border px-4 py-3 text-left transition ${
                   selected
-                    ? "border-orange-500/50 bg-orange-500/10 shadow-[0_0_0_1px_rgba(249,115,22,0.25)]"
-                    : "border-white/[0.08] bg-slate-950/40 hover:border-white/[0.14] hover:bg-slate-900/60"
+                    ? "border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500/30"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                 } ${disabled || loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -64,8 +64,8 @@ export function AwsAccountSelector({
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
                           selected
-                            ? "border-orange-500/30 bg-orange-500/15 text-orange-300"
-                            : "border-white/[0.08] bg-slate-900/70 text-slate-400 group-hover:text-slate-300"
+                            ? "border-orange-200 bg-orange-100 text-orange-700"
+                            : "border-slate-200 bg-slate-100 text-slate-600 group-hover:text-slate-800"
                         }`}
                       >
                         <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden>
@@ -78,15 +78,15 @@ export function AwsAccountSelector({
                         </svg>
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">{label}</p>
-                        <p className="truncate font-mono text-[11px] text-slate-500">
+                        <p className="truncate text-sm font-semibold text-slate-900">{label}</p>
+                        <p className="truncate font-mono text-[11px] text-slate-600">
                           {account.account_id}
                         </p>
                       </div>
                     </div>
                   </div>
                   {selected && (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-600 text-[10px] font-bold text-white">
                       ✓
                     </span>
                   )}
@@ -98,14 +98,14 @@ export function AwsAccountSelector({
       )}
 
       {loading && options.length > 0 && (
-        <p className="mt-2.5 flex items-center gap-2 text-xs text-slate-500">
-          <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-600 border-t-slate-400" />
+        <p className="mt-2.5 flex items-center gap-2 text-xs text-slate-600">
+          <span className="inline-flex h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-orange-500" />
           Refreshing accounts...
         </p>
       )}
 
       {error && (
-        <p className="mt-2.5 whitespace-pre-line rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mt-2.5 whitespace-pre-line rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
           {error}
         </p>
       )}

@@ -117,6 +117,7 @@ class AwsContextBuilder:
             },
             "resource_counts": investigation_ctx.get("resource_counts", {}),
             "mcp_enrichment": payload.get("mcp_enrichment", {}),
+            "rag_context": payload.get("rag_context", {}),
         }
 
     def _build_ec2_findings(self, instances: list[dict[str, Any]]) -> dict[str, Any]:

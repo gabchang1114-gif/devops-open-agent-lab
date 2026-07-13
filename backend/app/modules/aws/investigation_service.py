@@ -315,6 +315,14 @@ class AWSInvestigationService:
                         user_id,
                         agent_type="aws",
                     )
+                if user_id and getattr(request, "include_rag", False):
+                    from app.services.rag_service import rag_service
+
+                    diagnosis_payload = await rag_service.enrich(
+                        diagnosis_payload,
+                        user_id,
+                        agent_type="aws",
+                    )
                 diagnosis = await self.root_cause_analyzer.analyze(diagnosis_payload)
                 response.diagnosis = diagnosis
                 if diagnosis.llm_error:

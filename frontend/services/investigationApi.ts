@@ -18,6 +18,7 @@ export const investigationApi = {
       {
         cluster_id: request.cluster_id,
         include_ai: request.include_ai ?? true,
+        include_rag: request.include_rag ?? false,
         namespace: request.namespace,
         agent_type: request.agent_type ?? "kubernetes",
         account_id: request.account_id,

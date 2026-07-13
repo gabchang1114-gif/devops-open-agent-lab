@@ -142,6 +142,74 @@ class UserMcpIntegration(Base):
     )
 
 
+class UserMcpWhitelistEntry(Base):
+    __tablename__ = "user_mcp_whitelist_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    server_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class UserMcpBlacklistEntry(Base):
+    __tablename__ = "user_mcp_blacklist_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    server_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class UserQdrantIntegration(Base):
+    __tablename__ = "user_qdrant_integrations"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    url: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    api_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    collection: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    use_kubernetes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    use_aws: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    use_cloud_cost: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class InvestigationSchedule(Base):
     __tablename__ = "investigation_schedules"
 

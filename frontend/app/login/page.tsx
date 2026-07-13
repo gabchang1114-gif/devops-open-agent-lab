@@ -8,9 +8,15 @@ import { useAuth } from "@/context/AuthContext";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "response" in error) {
-    const response = (error as { response?: { data?: { detail?: string } } }).response;
-    if (typeof response?.data?.detail === "string") {
-      return response.data.detail;
+    const axiosError = error as {
+      response?: { data?: { detail?: string }; status?: number };
+      code?: string;
+    };
+    if (!axiosError.response) {
+      return "Unable to reach the backend API. Make sure the backend is running on port 8000.";
+    }
+    if (typeof axiosError.response?.data?.detail === "string") {
+      return axiosError.response.data.detail;
     }
   }
   return "Unable to sign in. Please try again.";
@@ -84,7 +90,7 @@ function LoginForm() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}

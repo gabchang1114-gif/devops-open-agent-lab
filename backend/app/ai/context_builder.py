@@ -57,6 +57,7 @@ class ContextBuilder:
             "observability_data": payload.get("observability", {}),
             "deployment_correlation_data": payload.get("deployments", {}),
             "mcp_enrichment": payload.get("mcp_enrichment", {}),
+            "rag_context": payload.get("rag_context", {}),
             "resource_summary": self._summarize_resources(payload.get("resources", {})),
         }
 

@@ -16,7 +16,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex min-h-screen items-center justify-center bg-surface text-slate-600">
         <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-brand-400" />
       </div>
     );

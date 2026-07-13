@@ -8,6 +8,7 @@ import { InvestigationForm } from "@/components/InvestigationForm";
 import { InvestigationProgress } from "@/components/InvestigationProgress";
 import { useClusters, resolveDefaultCluster } from "@/hooks/useClusters";
 import { useInvestigation } from "@/hooks/useInvestigation";
+import { useQdrantIntegration } from "@/hooks/useQdrantIntegration";
 import {
   useInvestigationResult,
   useInvestigationStatus,
@@ -36,9 +37,15 @@ export function Dashboard() {
   const [clusterId, setClusterId] = useState("");
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
+  const [includeRag, setIncludeRag] = useState(false);
 
   const clustersQuery = useClusters();
   const { startInvestigation, isStarting, startError, reset } = useInvestigation();
+  const { settings: qdrantSettings } = useQdrantIntegration();
+  const ragAvailable = Boolean(
+    (qdrantSettings?.enabled && qdrantSettings?.use_kubernetes) ||
+      qdrantSettings?.instance_url_configured,
+  );
   const statusQuery = useInvestigationStatus(activeInvestigationId);
   const status = statusQuery.data?.status;
   const isTerminal = Boolean(status && TERMINAL_STATUSES.has(status));
@@ -75,6 +82,7 @@ export function Dashboard() {
       const response = await startInvestigation({
         cluster_id: clusterId,
         include_ai: true,
+        include_rag: ragAvailable && includeRag,
       });
       setActiveInvestigationId(response.investigation_id);
     } catch (error) {
@@ -108,6 +116,9 @@ export function Dashboard() {
           disabled={status === "running"}
           clustersLoading={clustersQuery.isLoading}
           clustersError={clustersQuery.data?.error ?? null}
+          includeRag={includeRag}
+          onIncludeRagChange={setIncludeRag}
+          ragAvailable={ragAvailable}
         />
 
         {activeInvestigationId && statusQuery.data && (

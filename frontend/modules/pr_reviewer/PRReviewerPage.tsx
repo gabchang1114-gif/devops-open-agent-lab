@@ -77,59 +77,59 @@ export function PRReviewerPage() {
       <AppShell>
         <div className="space-y-6">
           <section>
-            <h1 className="text-3xl font-bold tracking-tight text-white">PR Reviewer</h1>
-            <p className="mt-2 text-slate-400">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">PR Reviewer</h1>
+            <p className="mt-2 text-slate-600">
               AI-powered DevOps review for GitHub Pull Requests
             </p>
           </section>
 
           <PRReviewerSetupGuide />
 
-          <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-            <h2 className="text-lg font-semibold text-white">Manual Review</h2>
-            <p className="mt-2 text-sm text-slate-400">
+          <section className="panel p-6">
+            <h2 className="panel-title text-lg">Manual Review</h2>
+            <p className="mt-2 text-sm text-slate-600">
               Trigger a DevOps review without waiting for a webhook event.
             </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <label className="block text-sm">
-                <span className="text-slate-300">Owner</span>
+                <span className="font-medium text-slate-800">Owner</span>
                 <input
                   value={owner}
                   onChange={(event) => setOwner(event.target.value)}
                   placeholder="ideaweaver-ai"
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-slate-900/60 px-3 py-2 text-white"
+                  className="input-field mt-1"
                 />
               </label>
               <label className="block text-sm">
-                <span className="text-slate-300">Repository</span>
+                <span className="font-medium text-slate-800">Repository</span>
                 <input
                   value={repo}
                   onChange={(event) => setRepo(event.target.value)}
                   placeholder="devops-testing"
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-slate-900/60 px-3 py-2 text-white"
+                  className="input-field mt-1"
                 />
               </label>
               <label className="block text-sm">
-                <span className="text-slate-300">Pull Request Number</span>
+                <span className="font-medium text-slate-800">Pull Request Number</span>
                 <input
                   value={pullRequestNumber}
                   onChange={(event) => setPullRequestNumber(event.target.value)}
                   placeholder="1"
                   inputMode="numeric"
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-slate-900/60 px-3 py-2 text-white"
+                  className="input-field mt-1"
                 />
               </label>
             </div>
 
             {userError && (
-              <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
                 {userError}
               </div>
             )}
 
             {activeReviewId && statusQuery.data && (
-              <div className="mt-4 rounded-lg border border-brand-500/20 bg-brand-500/10 px-4 py-3 text-sm text-brand-100">
+              <div className="mt-4 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
                 Review <span className="font-mono">{activeReviewId}</span> is{" "}
                 <span className="capitalize">{statusQuery.data.status}</span>
                 {statusQuery.data.current_step

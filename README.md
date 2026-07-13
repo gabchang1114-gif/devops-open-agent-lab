@@ -14,7 +14,7 @@
 | **AWS DevOps Agent** | Troubleshoot AWS infrastructure — EC2, **Lambda**, **S3**, VPC, load balancers, CloudWatch, and more |
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
-| **Integrations** | **Slack**, **Microsoft Teams**, **PagerDuty**, and **MCP** — notifications, on-call incidents, and external tool servers |
+| **Integrations** | **Slack**, **Microsoft Teams**, **PagerDuty**, **MCP**, and **Qdrant (RAG)** — notifications, on-call incidents, external tool servers, and investigation memory |
 
 ## Demo Video
 
@@ -99,6 +99,7 @@ Regenerate the diagram: `python3 scripts/build_integrations_diagram.py`
 | **Microsoft Teams** | Integrations → Teams | Team chat alerts via incoming webhook |
 | **PagerDuty** | Integrations → PagerDuty | On-call incidents, Events API v2, enterprise alerting |
 | **MCP** | Integrations → MCP | External tools & resources via Model Context Protocol |
+| **Qdrant (RAG)** | Integrations → Qdrant | Store investigations as vectors; retrieve similar past cases for AI analysis |
 
 Slack, Microsoft Teams, and PagerDuty support:
 
@@ -256,7 +257,10 @@ Configure under **Integrations → MCP** (`/integrations/mcp`):
 
 | Setting | Description |
 |---------|-------------|
-| **MCP server URL** | Streamable HTTP endpoint (e.g. `https://api.githubcopilot.com/mcp/`) |
+| **Official MCP servers** | Pick from supported catalog: GitHub, Linear, Sentry, and more |
+| **MCP server URL** | Streamable HTTP endpoint (auto-filled when you pick an official server) |
+| **Whitelist** | Save trusted MCP servers with a friendly name; once added, only whitelisted servers can be selected |
+| **Blacklist** | Block specific MCP server URLs from being used |
 | **API key** | Optional Bearer token for authenticated MCP servers |
 | **Agent toggles** | Choose which agents include MCP context during AI diagnosis |
 | **Ask MCP** | Text box to ask questions — the platform plans tool calls and returns a formatted answer |
@@ -266,7 +270,19 @@ Optional instance defaults in `backend/.env`:
 ```env
 MCP_INSTANCE_SERVER_URL=
 MCP_INSTANCE_API_KEY=
+# Restrict all users to approved MCP URLs (comma-separated URLs or host patterns)
+MCP_ALLOWED_SERVER_URLS=https://api.githubcopilot.com/mcp/,api.githubcopilot.com
 ```
+
+**MCP URL security**
+
+| Layer | Who configures | What it does |
+|-------|----------------|--------------|
+| **Instance allowlist** | Platform admin in `backend/.env` | When set, only matching MCP URLs can be saved or connected |
+| **User whitelist** | Each user in **Integrations → MCP** | Named trusted servers; once you add entries, only whitelisted URLs can be active |
+| **User blacklist** | Each user in **Integrations → MCP** | Block specific MCP URLs even if allowed by the platform |
+
+Validation runs when saving settings, testing connections, asking questions, and during investigation enrichment.
 
 **Ask MCP (interactive Q&A)**
 
@@ -295,6 +311,10 @@ docker compose up -d --force-recreate backend
 | `PUT` | `/api/v1/integrations/mcp` |
 | `POST` | `/api/v1/integrations/mcp/test` |
 | `POST` | `/api/v1/integrations/mcp/ask` |
+| `POST` | `/api/v1/integrations/mcp/whitelist` |
+| `DELETE` | `/api/v1/integrations/mcp/whitelist/{id}` |
+| `POST` | `/api/v1/integrations/mcp/blacklist` |
+| `DELETE` | `/api/v1/integrations/mcp/blacklist/{id}` |
 
 **Example GitHub MCP setup**
 
@@ -315,6 +335,50 @@ If you added new integration UI pages, rebuild the frontend as well (Docker bake
 ```bash
 docker compose build frontend && docker compose up -d --force-recreate frontend
 ```
+
+### Qdrant vector database (RAG)
+
+Turn your investigation history into a knowledge base. Every completed investigation with an AI diagnosis is embedded and stored in [**Qdrant**](https://qdrant.tech/). When you run a new Kubernetes or AWS investigation, tick **Include past investigations (RAG)** to retrieve the most similar prior cases and feed them to the LLM as extra context — so recommendations build on what your team has already seen.
+
+Configure under **Integrations → Qdrant (RAG)** (`/integrations/qdrant`):
+
+| Setting | Description |
+|---------|-------------|
+| **Qdrant URL** | Endpoint, e.g. `http://qdrant:6333` (Docker) or a Qdrant Cloud URL |
+| **API key** | Optional — required for Qdrant Cloud / secured deployments |
+| **Collection** | Optional override; defaults to `devops_open_agent_investigations` |
+| **Agent toggles** | Choose which agents (Kubernetes, AWS, Cloud Cost) are indexed into Qdrant |
+| **Embedding model** | Reuses your LLM provider — OpenAI, Gemini, or Ollama embeddings |
+
+How it works:
+
+1. **Index** — when an investigation finishes with AI diagnosis, its root cause, summary, and fix are embedded and upserted into Qdrant (tagged by agent type and user).
+2. **Retrieve** — with **Include past investigations (RAG)** checked, the agent embeds the current signals, searches Qdrant for the closest prior investigations (scoped to your own history), and injects them into the prompt.
+3. **Analyze** — the LLM correlates current evidence with recurring root causes and fixes that worked before, while still grounding the final diagnosis in the live investigation.
+
+The bundled `docker-compose.yml` ships a `qdrant` service, so RAG works out of the box. For an external cluster, set instance defaults in `backend/.env`:
+
+```env
+QDRANT_INSTANCE_URL=http://qdrant:6333
+QDRANT_INSTANCE_API_KEY=
+QDRANT_COLLECTION=devops_open_agent_investigations
+# Embedding provider: openai | gemini | ollama (defaults to LLM_PROVIDER when it supports embeddings)
+RAG_EMBEDDING_PROVIDER=
+RAG_EMBEDDING_MODEL=
+RAG_MAX_RESULTS=4
+```
+
+> **Ollama users:** pull an embedding model first (`ollama pull nomic-embed-text`) — chat models do not return embeddings.
+
+**API** (authenticated):
+
+| Method | Endpoint |
+|--------|----------|
+| `GET` | `/api/v1/integrations/qdrant` |
+| `PUT` | `/api/v1/integrations/qdrant` |
+| `POST` | `/api/v1/integrations/qdrant/test` |
+
+Use **Test connection** to verify the Qdrant endpoint and embeddings. Investigations expose an `include_rag` flag on `POST /api/v1/investigate` for both `kubernetes` and `aws` agent types.
 
 ## Proactive Kubernetes Schedules
 
@@ -815,6 +879,7 @@ GITHUB_WEBHOOK_SECRET=
 # MCP server (optional — see Integrations)
 # MCP_INSTANCE_SERVER_URL=
 # MCP_INSTANCE_API_KEY=
+# MCP_ALLOWED_SERVER_URLS=https://api.githubcopilot.com/mcp/,api.githubcopilot.com
 
 # PUBLIC_APP_URL=http://localhost:3000
 

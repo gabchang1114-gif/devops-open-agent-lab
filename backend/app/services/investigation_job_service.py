@@ -15,6 +15,7 @@ from app.notifications.pagerduty_notification_service import pagerduty_notificat
 from app.notifications.slack_notification_service import slack_notification_service
 from app.notifications.teams_notification_service import teams_notification_service
 from app.services.mcp_enrichment_service import mcp_enrichment_service
+from app.services.rag_service import rag_service
 from app.services.diagnosis_service import DiagnosisService
 from app.services.investigation_service import InvestigationService
 from app.storage.base import BaseInvestigationStore
@@ -107,6 +108,12 @@ class InvestigationJobService:
                     user_id,
                     agent_type="kubernetes",
                 )
+                if request.include_rag:
+                    diagnosis_payload = await rag_service.enrich(
+                        diagnosis_payload,
+                        user_id,
+                        agent_type="kubernetes",
+                    )
                 diagnosis = await self.diagnosis_service.diagnose(diagnosis_payload)
                 response.diagnosis = diagnosis
                 if diagnosis.llm_error:
@@ -168,6 +175,7 @@ class InvestigationJobService:
             issue_type=request.issue_type,  # type: ignore[arg-type]
             query=request.query,
             include_ai=request.include_ai,
+            include_rag=request.include_rag,
         )
 
         try:
@@ -326,4 +334,12 @@ class InvestigationJobService:
             scope_label=scope_label,
             diagnosis=diagnosis,
             user_id=user_id,
+        )
+        await rag_service.index_investigation(
+            user_id=user_id,
+            agent_type=agent_type,
+            investigation_id=investigation_id,
+            scope_label=scope_label,
+            status=record.get("status") if record else "success",
+            diagnosis=diagnosis,
         )
