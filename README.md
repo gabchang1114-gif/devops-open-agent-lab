@@ -125,6 +125,46 @@ DevOps Open Agent currently uses **self-hosted username/password auth**:
 - Optional: GitHub token for PR Reviewer
 - Optional: passwordless SSH (`~/.ssh`) for Performance Debugging
 
+### Verify prerequisites
+
+Run these checks before `./install.sh` to confirm everything is in place.
+
+**Docker**
+
+```bash
+docker info > /dev/null 2>&1 && echo "✅ Docker is running" || echo "❌ Docker is not running — start Docker Desktop or the Docker daemon"
+```
+
+**Docker Compose**
+
+```bash
+docker compose version > /dev/null 2>&1 && echo "✅ Docker Compose is available" || echo "❌ Docker Compose not found — install Compose v2"
+```
+
+**Python 3**
+
+```bash
+python3 --version > /dev/null 2>&1 && echo "✅ Python 3 is installed ($(python3 --version))" || echo "❌ Python 3 not found — install Python 3.12+"
+```
+
+**Ollama (optional — for local AI)**
+
+```bash
+curl -sf http://127.0.0.1:11434/api/tags > /dev/null && echo "✅ Ollama is reachable" || echo "⚠️  Ollama is not running — start Ollama or set a cloud LLM_PROVIDER in backend/.env"
+```
+
+**Kubernetes (optional)**
+
+```bash
+[ -f ~/.kube/config ] && echo "✅ Kubeconfig found" || echo "⚠️  ~/.kube/config not found — Kubernetes investigations will not work"
+```
+
+**AWS (optional)**
+
+```bash
+[ -d ~/.aws ] && echo "✅ AWS credentials directory found" || echo "⚠️  ~/.aws not found — AWS and Cloud Cost modules will need credentials"
+```
+
 ### Ubuntu one-line installs
 
 Use these commands on Ubuntu to install common dependencies before running `./install.sh`.
