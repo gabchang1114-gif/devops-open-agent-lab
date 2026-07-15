@@ -33,6 +33,18 @@ class InvestigationRequest(BaseModel):
         default=False,
         description="Augment AI analysis with similar past investigations from Qdrant (RAG)",
     )
+    include_judge: bool = Field(
+        default=False,
+        description="Run a secondary AI to verify the primary diagnosis (LLM-as-a-Judge)",
+    )
+    judge_provider: str | None = Field(
+        default=None,
+        description="LLM provider for the judge (overrides JUDGE_LLM_PROVIDER env var)",
+    )
+    judge_model: str | None = Field(
+        default=None,
+        description="Model name for the judge (overrides JUDGE_*_MODEL env var)",
+    )
     agent_type: str = Field(
         default="kubernetes",
         description="Troubleshooting agent type, e.g. kubernetes or aws",
@@ -97,6 +109,20 @@ class PodIssueDiagnosis(BaseModel):
     confidence_score: int = Field(ge=0, le=100, default=0)
 
 
+class JudgeVerdict(BaseModel):
+    """LLM-as-a-Judge evaluation of a primary diagnosis."""
+
+    verdict: str = Field(description="agree, partially_agree, or disagree")
+    confidence_score: int = Field(ge=0, le=100)
+    reasoning: str
+    factual_issues: list[str] = Field(default_factory=list)
+    missed_evidence: list[str] = Field(default_factory=list)
+    command_safety_concerns: list[str] = Field(default_factory=list)
+    suggested_improvements: list[str] = Field(default_factory=list)
+    llm_provider: str | None = None
+    llm_error: str | None = None
+
+
 class DiagnosisResult(BaseModel):
     """Structured AI root cause analysis."""
 
@@ -114,6 +140,7 @@ class DiagnosisResult(BaseModel):
     issue_diagnoses: list[PodIssueDiagnosis] = Field(default_factory=list)
     llm_provider: str | None = None
     llm_error: str | None = None
+    judge_verdict: JudgeVerdict | None = None
 
 
 class DiagnoseResponse(BaseModel):

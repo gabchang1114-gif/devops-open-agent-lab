@@ -38,6 +38,9 @@ export function Dashboard() {
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
   const [includeRag, setIncludeRag] = useState(false);
+  const [includeJudge, setIncludeJudge] = useState(false);
+  const [judgeProvider, setJudgeProvider] = useState("");
+  const [judgeModel, setJudgeModel] = useState("");
 
   const clustersQuery = useClusters();
   const { startInvestigation, isStarting, startError, reset } = useInvestigation();
@@ -83,6 +86,9 @@ export function Dashboard() {
         cluster_id: clusterId,
         include_ai: true,
         include_rag: ragAvailable && includeRag,
+        include_judge: includeJudge,
+        judge_provider: includeJudge && judgeProvider ? judgeProvider : null,
+        judge_model: includeJudge && judgeModel ? judgeModel : null,
       });
       setActiveInvestigationId(response.investigation_id);
     } catch (error) {
@@ -119,6 +125,12 @@ export function Dashboard() {
           includeRag={includeRag}
           onIncludeRagChange={setIncludeRag}
           ragAvailable={ragAvailable}
+          includeJudge={includeJudge}
+          onIncludeJudgeChange={setIncludeJudge}
+          judgeProvider={judgeProvider}
+          onJudgeProviderChange={setJudgeProvider}
+          judgeModel={judgeModel}
+          onJudgeModelChange={setJudgeModel}
         />
 
         {activeInvestigationId && statusQuery.data && (

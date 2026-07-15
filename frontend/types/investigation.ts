@@ -45,6 +45,18 @@ export interface PodIssueDiagnosis {
   confidence_score: number;
 }
 
+export interface JudgeVerdict {
+  verdict: "agree" | "partially_agree" | "disagree";
+  confidence_score: number;
+  reasoning: string;
+  factual_issues: string[];
+  missed_evidence: string[];
+  command_safety_concerns: string[];
+  suggested_improvements: string[];
+  llm_provider?: string | null;
+  llm_error?: string | null;
+}
+
 export interface DiagnosisResult {
   root_cause: string;
   summary: string;
@@ -60,6 +72,7 @@ export interface DiagnosisResult {
   issue_diagnoses?: PodIssueDiagnosis[];
   llm_provider?: string | null;
   llm_error?: string | null;
+  judge_verdict?: JudgeVerdict | null;
 }
 
 export interface InvestigationResultResponse {
@@ -97,6 +110,9 @@ export interface StartInvestigationRequest {
   cluster_id?: string;
   include_ai?: boolean;
   include_rag?: boolean;
+  include_judge?: boolean;
+  judge_provider?: string | null;
+  judge_model?: string | null;
   namespace?: string;
   agent_type?: "kubernetes" | "aws" | "cloud_cost";
   account_id?: string;
@@ -116,6 +132,7 @@ export const INVESTIGATION_STEPS = [
   "Network Inspection",
   "Topology Extraction",
   "AI Diagnosis",
+  "AI Verification",
 ] as const;
 
 export const AWS_INVESTIGATION_STEPS = [

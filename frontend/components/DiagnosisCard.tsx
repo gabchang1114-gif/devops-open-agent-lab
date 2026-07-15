@@ -7,6 +7,7 @@ import type {
   PodIssueDiagnosis,
 } from "@/types/investigation";
 import { LlmProviderBadge } from "@/components/LlmProviderBadge";
+import { JudgeVerdictCard } from "@/components/JudgeVerdictCard";
 
 interface DiagnosisCardProps {
   diagnosis: DiagnosisResult | null | undefined;
@@ -455,21 +456,27 @@ export function DiagnosisCard({
 
   if ((diagnosis.issue_diagnoses?.length ?? 0) > 1) {
     return (
-      <MultiIssueDiagnosisView
+      <>
+        <MultiIssueDiagnosisView
+          diagnosis={diagnosis}
+          status={status}
+          errorMessage={errorMessage}
+          commandLabel={commandLabel}
+        />
+        <JudgeVerdictCard verdict={diagnosis.judge_verdict} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SingleDiagnosisView
         diagnosis={diagnosis}
         status={status}
         errorMessage={errorMessage}
         commandLabel={commandLabel}
       />
-    );
-  }
-
-  return (
-    <SingleDiagnosisView
-      diagnosis={diagnosis}
-      status={status}
-      errorMessage={errorMessage}
-      commandLabel={commandLabel}
-    />
+      <JudgeVerdictCard verdict={diagnosis.judge_verdict} />
+    </>
   );
 }

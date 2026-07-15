@@ -98,7 +98,7 @@ class InvestigationJobService:
                     investigation_id,
                     status="running",
                     current_step="AI Diagnosis",
-                    progress_percentage=95,
+                    progress_percentage=90 if request.include_judge else 95,
                 )
                 diagnosis_payload = response.model_dump(mode="json")
                 record = await self.store.get_status(investigation_id)
@@ -114,7 +114,19 @@ class InvestigationJobService:
                         user_id,
                         agent_type="kubernetes",
                     )
-                diagnosis = await self.diagnosis_service.diagnose(diagnosis_payload)
+                if request.include_judge:
+                    await self.store.update_progress(
+                        investigation_id,
+                        status="running",
+                        current_step="AI Verification",
+                        progress_percentage=95,
+                    )
+                diagnosis = await self.diagnosis_service.diagnose(
+                    diagnosis_payload,
+                    include_judge=request.include_judge,
+                    judge_provider=request.judge_provider,
+                    judge_model=request.judge_model,
+                )
                 response.diagnosis = diagnosis
                 if diagnosis.llm_error:
                     response.status = "partial_success"

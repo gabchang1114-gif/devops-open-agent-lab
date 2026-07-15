@@ -4,6 +4,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.ai.judge import DiagnosisJudge
 from app.ai.root_cause_analyzer import RootCauseAnalyzer
 from app.models.diagnosis import DiagnoseResponse, DiagnosisResult
 from app.models.investigation import InvestigationResponse
@@ -12,14 +13,36 @@ from app.models.investigation import InvestigationResponse
 class DiagnosisService:
     """Generate AI diagnosis from investigation payloads."""
 
-    def __init__(self, analyzer: RootCauseAnalyzer | None = None) -> None:
+    def __init__(
+        self,
+        analyzer: RootCauseAnalyzer | None = None,
+        judge: DiagnosisJudge | None = None,
+    ) -> None:
         self.analyzer = analyzer or RootCauseAnalyzer()
+        self.judge = judge or DiagnosisJudge()
 
     async def diagnose(
         self,
         investigation: InvestigationResponse | dict[str, Any],
+        include_judge: bool = False,
+        judge_provider: str | None = None,
+        judge_model: str | None = None,
     ) -> DiagnosisResult:
-        return await self.analyzer.analyze(investigation)
+        diagnosis = await self.analyzer.analyze(investigation)
+        if include_judge and not diagnosis.llm_error:
+            evidence = (
+                investigation.model_dump(mode="json")
+                if isinstance(investigation, InvestigationResponse)
+                else investigation
+            )
+            verdict = await self.judge.evaluate(
+                diagnosis,
+                evidence,
+                judge_provider=judge_provider,
+                judge_model=judge_model,
+            )
+            diagnosis.judge_verdict = verdict
+        return diagnosis
 
     async def diagnose_payload(self, investigation_payload: dict[str, Any]) -> DiagnoseResponse:
         logger.info("Running AI diagnosis from provided investigation payload")

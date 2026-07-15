@@ -16,7 +16,7 @@
 
 | Module | Description |
 |--------|-------------|
-| **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology — **on demand or on a schedule** |
+| **Kubernetes Debugging Agent** | Investigate clusters, workloads, networking, and topology — **on demand or on a schedule** — with optional **LLM-as-a-Judge** verification |
 | **AWS DevOps Agent** | Troubleshoot AWS infrastructure — EC2, **Lambda**, **S3**, VPC, load balancers, CloudWatch, and more |
 | **Cloud Cost Detector** | Find unused and underutilized AWS resources |
 | **PR Reviewer** | AI DevOps review for GitHub pull requests |
@@ -54,8 +54,8 @@ Supported LLM providers: OpenAI, Anthropic, OpenRouter, Google Gemini, Ollama �
 
 ## LLM Supported
 
-All four agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer) use a **shared LLM layer**.  
-Configure one provider in `backend/.env` — every investigation, diagnosis, and PR review uses it.
+All agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer, Performance Debugging) use a **shared LLM layer**.  
+Configure one provider in `backend/.env` — every investigation, diagnosis, and PR review uses it. Kubernetes investigations can optionally use a **separate provider/model for LLM-as-a-Judge** verification (see [LLM-as-a-Judge](#llm-as-a-judge-ai-verification)).
 
 ![LLM provider architecture — DevOps Open Agent to Ollama, OpenAI, Anthropic, OpenRouter, and Google Gemini](img/llm-provider-diagram.png?v=gemini)
 
@@ -426,6 +426,58 @@ Collect Linux performance signals from remote hosts over **passwordless SSH**, t
 
 Remediation suggestions are **advice only** — the agent does not run `kill`, `sysctl`, or other changes on your hosts.
 
+## LLM-as-a-Judge (AI Verification)
+
+Add a **second AI** to verify the primary diagnosis. When enabled, a separate LLM reviews the diagnosis for factual consistency, evidence grounding, command safety, and completeness — then produces an advisory verdict displayed alongside the original diagnosis.
+
+<p align="center">
+  <img src="img/product-tour/16-llm-as-a-judge.png" alt="LLM-as-a-Judge — configure a second AI provider and model to verify the primary diagnosis" width="100%" />
+</p>
+
+**How it works**
+
+1. The primary AI completes its diagnosis (root cause, fix, kubectl commands, etc.)
+2. A secondary AI receives the diagnosis **and** the raw investigation evidence
+3. The judge evaluates five axes: factual consistency, evidence grounding, command safety, completeness, and actionability
+4. The verdict (agree / partially agree / disagree) is displayed as a collapsible panel below the diagnosis
+
+**Configuration**
+
+| Method | Where | Description |
+|--------|-------|-------------|
+| **Per-request (UI)** | Check "Verify with a second AI" on the investigation form | Pick a different provider and model inline — no restart needed |
+| **Environment defaults** | `backend/.env` | Set `JUDGE_LLM_PROVIDER` and `JUDGE_*_MODEL` for instance-wide defaults |
+| **Same API keys** | Automatic | The judge reuses API keys from your `.env` — only provider and model are separate |
+
+Example: use OpenAI as the primary for diagnosis and Anthropic as the judge for cross-model verification:
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o
+
+# Judge uses a different model to avoid self-confirmation bias
+JUDGE_LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+JUDGE_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+```
+
+Or skip the env vars entirely and pick the judge provider/model in the UI each time.
+
+**Judge verdict fields**
+
+| Field | Description |
+|-------|-------------|
+| **Verdict** | `agree`, `partially_agree`, or `disagree` |
+| **Confidence** | 0–100% confidence in the verdict |
+| **Reasoning** | Concise paragraph explaining the assessment |
+| **Factual issues** | Claims not supported by evidence |
+| **Missed evidence** | Signals present in evidence but not referenced |
+| **Command safety concerns** | Dangerous or overly broad kubectl commands |
+| **Suggested improvements** | Specific ways to improve the diagnosis |
+
+> **Note:** LLM-as-a-Judge is currently available for the **Kubernetes Debugging Agent**. Support for AWS and other agents may follow in future releases.
+
 ## Proactive Kubernetes Schedules
 
 Move from **reactive** troubleshooting (run when something breaks) to **proactive** monitoring — schedule recurring Kubernetes investigations with the same AI pipeline used for manual runs.
@@ -497,7 +549,7 @@ Regenerate the AWS services diagram: `python3 scripts/build_aws_services_diagram
 
 ## Architecture
 
-Application request flow: the browser talks to the Next.js frontend, which calls the FastAPI backend. The API routes requests to agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer, Performance Debugging), each using a shared AI layer and persisting results to SQLite or PostgreSQL. **Proactive schedules** trigger Kubernetes investigations via APScheduler; completed AI recommendations can flow to **Slack**, **Microsoft Teams**, and **PagerDuty** with configurable per-user cooldowns.
+Application request flow: the browser talks to the Next.js frontend, which calls the FastAPI backend. The API routes requests to agent modules (Kubernetes, AWS, Cloud Cost, PR Reviewer, Performance Debugging), each using a shared AI layer and persisting results to SQLite or PostgreSQL. Kubernetes investigations can optionally run **LLM-as-a-Judge** verification using a separate provider/model. **Proactive schedules** trigger Kubernetes investigations via APScheduler; completed AI recommendations can flow to **Slack**, **Microsoft Teams**, and **PagerDuty** with configurable per-user cooldowns.
 
 ![Application request flow](img/application-request-flow.png)
 
@@ -639,6 +691,14 @@ Enter hostnames (or upload a host list), collect Linux metrics over passwordless
 
 <p align="center">
   <img src="img/product-tour/15-performance-debugging.png" alt="Performance Debugging agent" width="100%" />
+</p>
+
+### 16. LLM-as-a-Judge
+
+Enable a second AI to verify the primary diagnosis. Pick a different provider and model inline — the judge evaluates factual consistency, evidence grounding, command safety, and completeness. See [LLM-as-a-Judge](#llm-as-a-judge-ai-verification).
+
+<p align="center">
+  <img src="img/product-tour/16-llm-as-a-judge.png" alt="LLM-as-a-Judge — configure a second AI provider and model to verify the primary Kubernetes diagnosis" width="100%" />
 </p>
 
 You can also [download the product tour as a PDF](docs/devops-open-agent-product-tour.pdf).
@@ -946,6 +1006,10 @@ GITHUB_WEBHOOK_SECRET=
 # MCP_INSTANCE_API_KEY=
 # MCP_ALLOWED_SERVER_URLS=https://api.githubcopilot.com/mcp/,api.githubcopilot.com
 
+# LLM-as-a-Judge (optional — uses a second AI to verify the primary diagnosis)
+# JUDGE_LLM_PROVIDER=anthropic
+# JUDGE_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+
 # PUBLIC_APP_URL=http://localhost:3000
 
 DEFAULT_ADMIN_EMAIL=admin
@@ -1127,7 +1191,7 @@ open-devops-agent/
 ├── backend/              # FastAPI application
 │   └── app/
 │       ├── modules/      # Agent modules (aws, cloud_cost, pr_reviewer, ...)
-│       ├── ai/           # Shared LLM providers
+│       ├── ai/           # Shared LLM providers + LLM-as-a-Judge
 │       ├── notifications/# Slack, Teams & PagerDuty delivery + cooldown
 │       ├── services/     # Investigation jobs, schedules, integration settings
 │       └── storage/      # SQLite history stores

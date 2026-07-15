@@ -42,6 +42,17 @@ class Settings(BaseSettings):
 
     llm_timeout: int = 120
 
+    # LLM-as-a-Judge (optional separate model for diagnosis verification)
+    judge_llm_provider: str = Field(
+        default="",
+        description="LLM provider for the judge. Falls back to llm_provider when empty.",
+    )
+    judge_openai_model: str = ""
+    judge_anthropic_model: str = ""
+    judge_openrouter_model: str = ""
+    judge_gemini_model: str = ""
+    judge_ollama_model: str = ""
+
     kubeconfig_path: str = ""
 
     kube_api_host_rewrite: str = ""

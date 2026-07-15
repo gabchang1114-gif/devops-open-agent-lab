@@ -20,6 +20,7 @@ INVESTIGATION_STEPS = [
     "Network Inspection",
     "Topology Extraction",
     "AI Diagnosis",
+    "AI Verification",
 ]
 
 AWS_INVESTIGATION_STEPS = [
