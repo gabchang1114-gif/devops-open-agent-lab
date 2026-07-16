@@ -2,15 +2,15 @@
   <img src="img/devops-open-agent-icon.png" alt="DevOps Open Agent" width="128" />
 </p>
 
-# DevOps Open Agent
+# DevOps Open Agent v2
 
-**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, and review pull requests with DevOps-focused AI guidance — reactively on demand or **proactively on a schedule** — then deliver recommendations to **Slack**, **Microsoft Teams**, and **PagerDuty** without alert fatigue.
+**DevOps Open Agent** is an open-source, self-hostable, AI-powered DevOps troubleshooting platform. It helps DevOps engineers, SREs, and platform teams investigate infrastructure issues, optimize cloud costs, review pull requests, debug performance, and scan for security vulnerabilities with DevOps-focused AI guidance — reactively on demand or **proactively on a schedule** — then deliver recommendations to **Slack**, **Microsoft Teams**, and **PagerDuty** without alert fatigue.
 
 <p align="center">
-  <img src="img/product-tour/01-devops-open-agent.png" alt="DevOps Open Agent — Operations Hub with sidebar navigation, Kubernetes investigation, and Qdrant RAG" width="100%" />
+  <img src="img/devops-open-agent-v2-hero.png" alt="DevOps Open Agent v2 — Operations Hub with 6 agents, Kubernetes investigation, RAG, and LLM-as-a-Judge" width="100%" />
 </p>
 
-*Redesigned Operations Hub UI — sidebar navigation across agents and integrations, with optional Qdrant RAG on investigations.*
+*DevOps Open Agent v2 — Operations Hub with 6 agents, integrations, and AI-powered investigations.*
 
 ## Modules
 
